@@ -1,45 +1,34 @@
+use crate::application::ports::BrowserLauncher;
+use crate::domain::config::ChannelConfig;
+use crate::domain::state::{AppState, ChannelState};
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::Duration;
-
-use anyhow::Result;
-use ksni::TrayMethods;
-use tokio::sync::watch;
-
-use crate::config::{ChannelConfig, Config};
-use crate::state::{AppState, ChannelState};
-
-/// Source of truth for tray state updates.
-pub enum StateSource {
-    /// Watch channel driven by the daemon (instant updates).
-    Watch(watch::Receiver<AppState>),
-    /// Read from disk (standalone tray mode).
-    File,
-}
 
 // ---------------------------------------------------------------------------
 // Tray data — holds everything the menu needs to render
 // ---------------------------------------------------------------------------
 
-struct TrayData {
-    channels: Vec<ChannelConfig>,
-    state: AppState,
+pub(super) struct TrayData {
+    pub(super) channels: Vec<ChannelConfig>,
+    pub(super) state: AppState,
 }
 
 // ---------------------------------------------------------------------------
 // Embedded icon from assets/icons/kucheat.png
 // ---------------------------------------------------------------------------
 
-static ICON_PNG: &[u8] = include_bytes!("../assets/icons/kucheat.png");
+static ICON_PNG: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/icons/kucheat.png"
+));
 
 /// Decode the embedded PNG once and cache the ARGB pixmap.
 fn make_icon_pixmap() -> Vec<ksni::Icon> {
     use std::sync::LazyLock;
 
     static PIXMAP: LazyLock<Vec<ksni::Icon>> = LazyLock::new(|| {
-        let img =
-            image::load_from_memory_with_format(ICON_PNG, image::ImageFormat::Png)
-                .expect("embedded icon.png is invalid")
-                .into_rgba8();
+        let img = image::load_from_memory_with_format(ICON_PNG, image::ImageFormat::Png)
+            .expect("embedded icon.png is invalid")
+            .into_rgba8();
 
         let width = img.width() as i32;
         let height = img.height() as i32;
@@ -50,7 +39,11 @@ fn make_icon_pixmap() -> Vec<ksni::Icon> {
             argb.extend_from_slice(&[a, r, g, b]);
         }
 
-        vec![ksni::Icon { width, height, data: argb }]
+        vec![ksni::Icon {
+            width,
+            height,
+            data: argb,
+        }]
     });
 
     PIXMAP.clone()
@@ -68,11 +61,19 @@ fn label_item<T: ksni::Tray>(text: String) -> ksni::MenuItem<T> {
     })
 }
 
-fn link_item<T: ksni::Tray>(label: String, url: String) -> ksni::MenuItem<T> {
+fn link_item<T: ksni::Tray>(
+    label: String,
+    url: String,
+    browser: Arc<dyn BrowserLauncher>,
+) -> ksni::MenuItem<T> {
     ksni::MenuItem::Standard(ksni::menu::StandardItem {
         label,
         activate: Box::new(move |_| {
-            let _ = open::that(&url);
+            let browser = Arc::clone(&browser);
+            let url = url.clone();
+            tokio::spawn(async move {
+                let _ = browser.open(&url).await;
+            });
         }),
         ..Default::default()
     })
@@ -90,11 +91,12 @@ fn chzzk_url(path: &str, channel_id: &str) -> String {
 // ksni Tray implementation (0.3 API)
 // ---------------------------------------------------------------------------
 
-struct KucheatTray {
+pub(super) struct TrayMenu {
     data: Arc<StdMutex<TrayData>>,
+    browser: Arc<dyn BrowserLauncher>,
 }
 
-impl ksni::Tray for KucheatTray {
+impl ksni::Tray for TrayMenu {
     fn id(&self) -> String {
         "kucheat".to_string()
     }
@@ -124,12 +126,7 @@ impl ksni::Tray for KucheatTray {
         let live_count = data
             .channels
             .iter()
-            .filter(|ch| {
-                data.state
-                    .channels
-                    .get(&ch.id)
-                    .is_some_and(|s| s.is_live)
-            })
+            .filter(|ch| data.state.channels.get(&ch.id).is_some_and(|s| s.is_live))
             .count();
 
         let description = if live_count > 0 {
@@ -153,13 +150,10 @@ impl ksni::Tray for KucheatTray {
         if data.channels.is_empty() {
             items.push(label_item("채널 없음 (kucheat add <id>)".into()));
         } else {
-            let (live, offline): (Vec<_>, Vec<_>) =
-                data.channels.iter().partition(|ch| {
-                    data.state
-                        .channels
-                        .get(&ch.id)
-                        .is_some_and(|s| s.is_live)
-                });
+            let (live, offline): (Vec<_>, Vec<_>) = data
+                .channels
+                .iter()
+                .partition(|ch| data.state.channels.get(&ch.id).is_some_and(|s| s.is_live));
 
             // ── Live channels ──────────────────────────────────────
             if !live.is_empty() {
@@ -173,10 +167,7 @@ impl ksni::Tray for KucheatTray {
 
             // ── Offline channels ───────────────────────────────────
             if !offline.is_empty() {
-                items.push(label_item(format!(
-                    "━━ 오프라인 ({}) ━━",
-                    offline.len()
-                )));
+                items.push(label_item(format!("━━ 오프라인 ({}) ━━", offline.len())));
 
                 for ch in &offline {
                     items.push(self.build_offline_submenu(ch));
@@ -200,7 +191,10 @@ impl ksni::Tray for KucheatTray {
     }
 }
 
-impl KucheatTray {
+impl TrayMenu {
+    pub(super) fn new(data: Arc<StdMutex<TrayData>>, browser: Arc<dyn BrowserLauncher>) -> Self {
+        Self { data, browser }
+    }
     fn build_live_submenu(
         &self,
         ch: &ChannelConfig,
@@ -220,10 +214,12 @@ impl KucheatTray {
         sub.push(link_item(
             "🔗 라이브 보기".into(),
             chzzk_url("live", &ch.id),
+            Arc::clone(&self.browser),
         ));
         sub.push(link_item(
             "🔗 채널 페이지 열기".into(),
             chzzk_url("", &ch.id),
+            Arc::clone(&self.browser),
         ));
 
         ksni::MenuItem::SubMenu(ksni::menu::SubMenu {
@@ -239,115 +235,9 @@ impl KucheatTray {
             submenu: vec![link_item(
                 "🔗 채널 페이지 열기".into(),
                 chzzk_url("", &ch.id),
+                Arc::clone(&self.browser),
             )],
             ..Default::default()
         })
     }
-}
-
-// ---------------------------------------------------------------------------
-// Entry-point
-// ---------------------------------------------------------------------------
-
-pub async fn run(source: StateSource) -> Result<()> {
-    tracing::info!("Starting Kucheat tray app…");
-
-    let config = Config::load()?;
-    tracing::debug!(channels = config.channels.len(), "Tray loaded config");
-
-    let tray_data = Arc::new(StdMutex::new(TrayData {
-        channels: config.channels.clone(),
-        state: AppState::default(),
-    }));
-
-    let handle = KucheatTray {
-        data: Arc::clone(&tray_data),
-    }
-    .assume_sni_available(true)
-    .spawn()
-    .await
-    .map_err(|e| anyhow::anyhow!("Failed to spawn tray: {e}"))?;
-
-    tracing::info!("Tray icon registered, entering state-sync loop…");
-
-    match source {
-        // ── Daemon in same process: react to watch channel instantly ──
-        StateSource::Watch(mut rx) => {
-            // Poll the config file every 2 s so that `kucheat add/remove`
-            // is reflected in the tray without waiting for the next
-            // daemon state push.
-            let mut config_poll = tokio::time::interval(Duration::from_secs(2));
-            config_poll.tick().await; // consume immediate first tick
-
-            let mut last_channel_ids: Vec<String> =
-                config.channels.iter().map(|c| c.id.clone()).collect();
-
-            loop {
-                tokio::select! {
-                    // Daemon pushed a new state – update everything.
-                    result = rx.changed() => {
-                        if result.is_err() {
-                            tracing::warn!("Daemon state channel closed, stopping tray sync");
-                            break;
-                        }
-
-                        tracing::debug!("Daemon pushed new state, updating tray");
-                        let app_state = rx.borrow_and_update().clone();
-                        let config = Config::load().unwrap_or_default();
-                        last_channel_ids =
-                            config.channels.iter().map(|c| c.id.clone()).collect();
-
-                        {
-                            let mut td = tray_data.lock().unwrap();
-                            td.channels = config.channels;
-                            td.state = app_state;
-                        }
-
-                        handle.update(|_| {}).await;
-                    }
-                    // Config file may have changed – update the channel
-                    // list immediately so add/remove is visible at once.
-                    _ = config_poll.tick() => {
-                        let config = Config::load().unwrap_or_default();
-                        let current_ids: Vec<String> =
-                            config.channels.iter().map(|c| c.id.clone()).collect();
-
-                        if current_ids != last_channel_ids {
-                            last_channel_ids = current_ids;
-                            tracing::info!("Config change detected, updating tray…");
-                            let app_state = rx.borrow().clone();
-                            {
-                                let mut td = tray_data.lock().unwrap();
-                                td.channels = config.channels;
-                                td.state = app_state;
-                            }
-                            handle.update(|_| {}).await;
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── Standalone tray: poll disk every few seconds ─────────────
-        StateSource::File => {
-            const SYNC_INTERVAL: Duration = Duration::from_secs(3);
-
-            loop {
-                tracing::debug!("File mode: polling state from disk");
-                let config = Config::load().unwrap_or_default();
-                let app_state = AppState::load().unwrap_or_default();
-
-                {
-                    let mut td = tray_data.lock().unwrap();
-                    td.channels = config.channels;
-                    td.state = app_state;
-                }
-
-                handle.update(|_| {}).await;
-                tokio::time::sleep(SYNC_INTERVAL).await;
-            }
-        }
-    }
-
-    Ok(())
 }

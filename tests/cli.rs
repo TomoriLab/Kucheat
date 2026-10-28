@@ -1,0 +1,160 @@
+use std::fs;
+use std::path::PathBuf;
+use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
+
+struct Sandbox(PathBuf);
+
+impl Sandbox {
+    fn new() -> Self {
+        let path = std::env::temp_dir().join(format!(
+            "kucheat-cli-{}-{}",
+            std::process::id(),
+            NEXT_TEST.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(path.join("home")).unwrap();
+        Self(path)
+    }
+
+    fn run(&self, arguments: &[&str]) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_kucheat"))
+            .args(arguments)
+            .env("HOME", self.0.join("home"))
+            .env("XDG_CONFIG_HOME", self.0.join("config"))
+            .env("XDG_STATE_HOME", self.0.join("state"))
+            .env("XDG_DATA_HOME", self.0.join("data"))
+            .env("RUST_LOG", "error")
+            .output()
+            .unwrap()
+    }
+}
+
+impl Drop for Sandbox {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+#[test]
+fn cli_creates_configuration_and_preserves_channel_management() {
+    let sandbox = Sandbox::new();
+    let initial = sandbox.run(&["list"]);
+    assert!(initial.status.success());
+    assert!(String::from_utf8_lossy(&initial.stdout).contains("등록된 채널이 없습니다."));
+    let path = sandbox.0.join("config/kucheat/config.toml");
+    let initial: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(
+        initial["settings"]["check_interval_secs"].as_integer(),
+        Some(60)
+    );
+    let content = format!(
+        "{}\n[[channels]]\nid = \"0123456789abcdef0123456789abcdef\"\nname = \"테스트 채널\"\n",
+        fs::read_to_string(&path)
+            .unwrap()
+            .replace("channels = []", "")
+    );
+    fs::write(&path, content).unwrap();
+    let listed = sandbox.run(&["list"]);
+    assert!(listed.status.success());
+    assert!(String::from_utf8_lossy(&listed.stdout).contains("테스트 채널"));
+    assert!(
+        sandbox
+            .run(&["remove", "0123456789abcdef0123456789abcdef"])
+            .status
+            .success()
+    );
+    let remaining: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert!(remaining["channels"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn invalid_channel_input_is_rejected_before_network_access() {
+    let sandbox = Sandbox::new();
+    let output = sandbox.run(&["add", "https://evil.example/invalid"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("chzzk.naver.com"));
+    assert!(!sandbox.0.join("config/kucheat/config.toml").exists());
+}
+
+#[test]
+fn autostart_uses_the_daemon_subcommand() {
+    let sandbox = Sandbox::new();
+    let installed = sandbox.run(&["auto-launch", "install"]);
+    assert!(installed.status.success(), "{:?}", installed.stderr);
+    let path = sandbox.0.join("home/.config/autostart/Kucheat.desktop");
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("daemon"));
+    assert!(!content.contains("--daemon"));
+    assert!(sandbox.run(&["auto-launch", "uninstall"]).status.success());
+    assert!(!path.exists());
+}
+
+#[test]
+fn parallel_configuration_updates_preserve_other_fields() {
+    let sandbox = Sandbox::new();
+    assert!(sandbox.run(&["list"]).status.success());
+    let path = sandbox.0.join("config/kucheat/config.toml");
+    let mut config: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    let identifiers: Vec<String> = (0..12).map(|value| format!("{value:032x}")).collect();
+    config["channels"] = toml::Value::Array(
+        identifiers
+            .iter()
+            .map(|identifier| {
+                let mut channel = toml::map::Map::new();
+                channel.insert("id".to_owned(), toml::Value::String(identifier.clone()));
+                channel.insert("name".to_owned(), toml::Value::String("Channel".to_owned()));
+                toml::Value::Table(channel)
+            })
+            .collect(),
+    );
+    config["api"]["client_secret"] = toml::Value::String("preserved-secret".to_owned());
+    fs::write(&path, toml::to_string_pretty(&config).unwrap()).unwrap();
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = identifiers
+            .iter()
+            .map(|identifier| {
+                let sandbox = &sandbox;
+                scope.spawn(move || sandbox.run(&["remove", identifier]))
+            })
+            .collect();
+        for handle in handles {
+            assert!(handle.join().unwrap().status.success());
+        }
+    });
+    let remaining: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert!(remaining["channels"].as_array().unwrap().is_empty());
+    assert_eq!(
+        remaining["api"]["client_secret"].as_str(),
+        Some("preserved-secret")
+    );
+}
+
+#[test]
+fn cli_status_and_removal_do_not_overwrite_monitor_state() {
+    let sandbox = Sandbox::new();
+    assert!(sandbox.run(&["list"]).status.success());
+    let path = sandbox.0.join("config/kucheat/config.toml");
+    let content = fs::read_to_string(&path)
+        .unwrap()
+        .replace("channels = []", "");
+    fs::write(&path, format!("{content}\n[[channels]]\nid = \"0123456789abcdef0123456789abcdef\"\nname = \"Channel\"\n")).unwrap();
+    let state_path = sandbox.0.join("state/kucheat/state.json");
+    fs::create_dir_all(state_path.parent().unwrap()).unwrap();
+    let state = serde_json::json!({"channels": {"0123456789abcdef0123456789abcdef": {
+        "is_live": false, "channel_name": "Channel", "live_title": null,
+        "category": null, "viewer_count": null, "last_checked": "2025-09-18T00:00:00Z", "went_live_at": null
+    }}});
+    fs::write(&state_path, serde_json::to_vec(&state).unwrap()).unwrap();
+    let original = fs::read(&state_path).unwrap();
+    assert!(sandbox.run(&["status"]).status.success());
+    assert_eq!(fs::read(&state_path).unwrap(), original);
+    assert!(
+        sandbox
+            .run(&["remove", "0123456789abcdef0123456789abcdef"])
+            .status
+            .success()
+    );
+    assert_eq!(fs::read(&state_path).unwrap(), original);
+}

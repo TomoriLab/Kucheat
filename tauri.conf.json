@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kucheat",
+  "version": "0.1.0",
+  "identifier": "io.github.tomorilab.Kucheat",
+  "build": {
+    "frontendDist": "target/frontend"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kucheat",
+        "width": 1100,
+        "height": 760,
+        "minWidth": 720,
+        "minHeight": 560,
+        "decorations": true,
+        "transparent": false,
+        "backgroundColor": "#f5f5f5"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.pstatic.net; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'",
+      "capabilities": ["main"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "rpm"],
+    "icon": ["assets/icons/kucheat.png"],
+    "category": "Utility",
+    "shortDescription": "CHZZK live stream notifications",
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0t64"]
+      }
+    }
+  }
+}

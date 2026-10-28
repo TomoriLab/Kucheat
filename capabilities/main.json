@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The local main window uses only the application's explicit commands.",
+  "windows": ["main"],
+  "permissions": []
+}

@@ -24,3 +24,8 @@ target
 # Added by cargo
 
 /target
+
+# Tauri generates capability schemas during GUI builds.
+/gen/schemas/
+/node_modules/
+**/__pycache__/

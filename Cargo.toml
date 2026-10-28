@@ -2,12 +2,16 @@
 name = "kucheat"
 version = "0.1.0"
 edition = "2024"
-description = "CHZZK live stream notification system tray app for Linux"
-rust-version = "1.89"
+description = "CHZZK live stream notifications with a Fluent 2 desktop interface for Linux"
+rust-version = "1.90"
 
 [[bin]]
 name = "kucheat"
 path = "src/main.rs"
+
+[features]
+default = ["gui"]
+gui = ["dep:tauri", "dep:tauri-build"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -26,3 +30,8 @@ chrono = { version = "0.4", features = ["serde"] }
 open = "5"
 image = { version = "0.25", default-features = false, features = ["png"] }
 auto-launch = "0.6.0"
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+tauri = { version = "2.12", features = ["custom-protocol"], optional = true }
+
+[build-dependencies]
+tauri-build = { version = "2.7", optional = true }

@@ -1,31 +1,60 @@
 # Kucheat
 
-**CHZZK Live Stream Notification Tray App for Linux** — Get desktop notifications when your favorite streamers go live.
+CHZZK live stream notifications for Linux, with a Tauri desktop interface, a headless daemon, and an optional system tray.
+
+The Korean-language GUI follows [Microsoft Fluent 2](https://fluent2.microsoft.design/): neutral layered surfaces, blue accents, a system-font type ramp, keyboard navigation, and light, dark, and system themes. The TypeScript frontend is compiled and bundled locally without runtime frameworks or remotely hosted application assets. Streamer profile images load from NAVER's image CDN, with initials as a fallback.
 
 ## Prerequisites
 
 ### System Dependencies
 
+The default build includes the Tauri GUI and requires GTK 3 and WebKitGTK 4.1 development packages. See the [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux) for distribution-specific requirements.
+
 ```bash
 # Ubuntu / Debian
-sudo apt install libdbus-1-dev pkg-config
+sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libdbus-1-dev
 
 # Fedora
-sudo dnf install dbus-devel pkg-config
+sudo dnf install gcc gcc-c++ make pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel dbus-devel
 
 # Arch Linux
-sudo pacman -S dbus pkg-config
+sudo pacman -S base-devel gtk3 webkit2gtk-4.1 dbus
 ```
+
+The GUI, live monitor, notifications, and tray use the desktop session D-Bus. The tray uses StatusNotifierItem through `ksni`; the GUI does not require an AppIndicator library or a tray extension.
 
 ### Rust
 
-Requires Rust **1.89+** (edition 2024).
+Requires Rust **1.90+** (edition 2024).
+
+### Frontend Toolchain
+
+GUI development requires Node.js **24+** and npm. Install the pinned development dependencies once:
+
+```bash
+npm ci
+# If npm is provided through Corepack:
+corepack npm ci
+```
+
+Cargo runs the TypeScript compiler automatically before embedding the frontend. The installed application does not require Node.js or npm. A headless-only build does not require the frontend toolchain.
 
 ## Build
 
 ```bash
-cargo build --release
+cargo build --locked --release
+
+# Run the GUI from source.
+cargo run --locked
 ```
+
+For CLI and daemon use without GTK or WebKitGTK development packages:
+
+```bash
+cargo build --locked --release --no-default-features
+```
+
+A headless-only build retains all CLI commands except `gui`. Running it without a command reports that GUI support is disabled.
 
 ## Install
 
@@ -33,109 +62,141 @@ cargo build --release
 make install
 ```
 
-### Uninstall
+This installs the binary, a desktop launcher, the icon, and the systemd user service under `~/.local` and `~/.config`. Open **Kucheat** from the desktop application menu or run `kucheat`.
 
 ```bash
 make uninstall
 ```
 
+## Desktop Interface
+
+```bash
+kucheat
+# Equivalent explicit command:
+kucheat gui
+```
+
+- **Channels:** add a 32-character CHZZK channel ID or an HTTPS channel/live URL, optionally choose a display name, search and filter channels, open streams, and remove channels with confirmation.
+- **Live status:** show stream titles, categories, viewer counts, and check timestamps. Channels that have not been checked remain distinct from offline channels. Manual refresh requests a check from the active monitor.
+- **Settings:** configure the check interval, offline notifications, optional API credentials, login autostart, and appearance. Send a test desktop notification to verify notification delivery.
+
+The GUI monitors channels while its window is open. Closing the window exits the GUI; it does not hide in a potentially unavailable tray. Enable login autostart or the systemd daemon for notifications after the GUI closes.
+
+The GUI and CLI share the same configuration and state. A session D-Bus name ensures only one process monitors channels and sends notifications. An open GUI follows an existing daemon and takes over if it stops. A daemon started while the GUI owns monitoring waits for ownership. Starting the GUI again activates the existing window instead of opening another instance.
+
+API secrets are write-only in the GUI. A blank secret field preserves the stored value; the explicit clear option removes it. Configuration and state files are replaced atomically with owner-only permissions. Credentials remain in the local TOML configuration, not an encrypted credential store.
+
+## Wayland
+
+GTK chooses the session backend. Kucheat does not force X11, use global window positioning, or replace native window decorations with WebView drag regions. To require native Wayland for a diagnostic run:
+
+```bash
+GDK_BACKEND=wayland kucheat gui
+```
+
+Window activation and focus remain subject to compositor policy. The GUI does not depend on a tray icon: GNOME installations without a StatusNotifierItem extension can still manage channels and receive desktop notifications. Fractional scaling uses the WebView's logical CSS pixels and responsive layout.
+
+Run the application as the logged-in desktop user with the session D-Bus and Wayland socket available. Do not run it through `sudo`. A headless server can use the CLI, but desktop notifications require a notification service on its session bus.
+
 ## Configuration
 
-A default config file is created on first run at `~/.config/kucheat/config.toml`:
+A default config file is created on first run at `~/.config/kucheat/config.toml` (or `$XDG_CONFIG_HOME/kucheat/config.toml`):
 
 ```toml
 [api]
-# CHZZK Open API credentials
 client_id = ""
 client_secret = ""
 
 [settings]
-# Live check interval in seconds
+# The accepted interval is 15 through 86400 seconds.
 check_interval_secs = 60
-# Send a notification when a stream goes offline
 notify_offline = false
 
-# Channels to monitor
 [[channels]]
-id = "CHANNEL_ID"
+id = "0123456789abcdef0123456789abcdef"
 name = "Streamer Name"
 ```
 
+Live state is stored at `$XDG_STATE_HOME/kucheat/state.json`, normally `~/.local/state/kucheat/state.json`.
+
 ### CHZZK Open API Credentials
 
-Register an application at the [CHZZK Developer Center](https://developers.chzzk.naver.com) and obtain a Client ID and Client Secret. The official API (`openapi.chzzk.naver.com`) is used for channel info lookups; the unofficial API is used for live status checks (as the official API does not expose per-channel live state).
+Register an application at the [CHZZK Developer Center](https://developers.chzzk.naver.com) and obtain a Client ID and Client Secret. The official API (`openapi.chzzk.naver.com`) is used for channel information lookups; the unofficial API is used for live status checks because the official API does not expose per-channel live state.
 
-If credentials are left empty, only the unofficial API will be used.
+If credentials are left empty, only the unofficial API is used. Credential and monitoring-setting changes take effect without restarting the monitor. HTTP requests have a 5-second connection timeout and a 15-second overall timeout.
 
-## Usage
-
-### Channel Management
+## CLI Usage
 
 ```bash
-# Add a channel (name auto-resolved from API)
+# Add a channel, resolving its name through the API.
 kucheat add <CHANNEL_ID>
-
-# Add a channel with an explicit name
 kucheat add <CHANNEL_ID> --name "Streamer Name"
 
-# Remove a channel
+# Remove, list, or inspect channels.
 kucheat remove <CHANNEL_ID>
-
-# List monitored channels
 kucheat list
-
-# Check current live status
 kucheat status
 ```
 
 ### Daemon (Systemd)
 
 ```bash
-# Enable auto-start on login
-systemctl --user enable kucheat
-
-# Start the daemon
-systemctl --user start kucheat
-
-# Check status
+systemctl --user enable --now kucheat
 systemctl --user status kucheat
-
-# Stream logs
 journalctl --user -u kucheat -f
-
-# Stop the daemon
 systemctl --user stop kucheat
 ```
 
-When the daemon starts, it automatically spawns the system tray in the same process with shared in-memory state.
+The daemon also starts the optional tray. Tray availability does not control monitoring or notification delivery.
 
 ### Daemon (XDG Autostart)
 
-If you want to run a program while using a desktop session, you can add a desktop file to `~/.config/autostart/` by using command `auto-launch`
+The GUI's login autostart switch and these commands manage the same `~/.config/autostart/Kucheat.desktop` entry. It starts `kucheat daemon`, not the GUI. Choose either XDG autostart or systemd for login startup; both are not necessary.
 
 ```bash
-# Enable auto launch
 kucheat auto-launch install
+kucheat auto-launch uninstall
 ```
 
 ### System Tray
 
 ```bash
-# Manual standalone start (reads state from disk)
 kucheat tray
 ```
 
-Tray menu features:
-
-- **Live channels** — shows stream title, viewer count, with sub-menu links to open the live stream or channel page in your browser
-- **Offline channels** — shows a link to open the channel page
+The standalone tray reads persisted state. Live-channel submenus show stream titles and viewer counts, with links to the stream and channel page. Offline-channel submenus link to the channel page.
 
 ### Notifications
 
-Desktop notifications include action buttons:
+Live notifications provide **라이브 보기** and **채널 페이지** actions. Offline notifications are optional. The desktop notification service determines whether actions are displayed.
 
-- **라이브 보기** — Opens the live stream in your default browser
-- **채널 페이지** — Opens the channel page
+## Architecture
+
+The Rust backend and TypeScript frontend use constructor-injected services, state objects, controllers, and adapters. Both are organized into `domain`, `application`, `infrastructure`, `presentation`, and `bootstrap` boundaries. GUI and CLI share native application services; platform effects stay behind traits or interfaces.
+
+See [Application architecture](docs/architecture.md) for the directory map, object responsibilities, dependency rules, and guidance for extending behavior. The [frontend design contract](ui/DESIGN.md) documents Fluent 2 presentation and controller lifetimes.
+
+## Tests
+
+```bash
+cargo test --locked --all-targets --all-features
+cargo clippy --locked --all-targets --all-features
+
+# Exercise D-Bus ownership and refresh IPC without affecting the desktop session.
+dbus-run-session -- cargo test --locked --all-features dbus_monitor_has_one_owner_and_accepts_refresh -- --ignored
+
+# TypeScript type checking and frontend state/controller/transport tests.
+npm run check
+npm test
+
+# Native GUI regression tests require a Wayland session, Python 3.11+,
+# tauri-driver, WebKitWebDriver, and gdbus.
+cargo build --locked
+dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat
+
+# Optionally verify an actual streamer's profile image (requires CHZZK/CDN access).
+dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat --profile-channel-id <CHANNEL_ID>
+```
 
 ## License
 

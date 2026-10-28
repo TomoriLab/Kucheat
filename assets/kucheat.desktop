@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Kucheat
+Comment=CHZZK live stream notifications
+Comment[ko]=CHZZK 라이브 알림
+Exec=kucheat
+Icon=kucheat
+Terminal=false
+Categories=Network;
+Keywords=CHZZK;stream;notification;
+StartupWMClass=kucheat
+StartupNotify=true
