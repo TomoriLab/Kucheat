@@ -19,7 +19,7 @@ sudo pacman -S dbus pkg-config
 
 ### Rust
 
-Requires Rust **1.85+** (edition 2024).
+Requires Rust **1.89+** (edition 2024).
 
 ## Build
 
