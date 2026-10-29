@@ -17,6 +17,7 @@ pub enum AutoLaunchCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(hide = !cfg!(feature = "gui"))]
     Gui,
     Daemon,
     Tray,
@@ -109,7 +110,7 @@ mod tests {
             let mut command = localize_command(Cli::command(), messages);
             let help = command.render_help().to_string();
             assert!(help.contains(messages.app_description));
-            assert!(help.contains(messages.command_gui));
+            assert_eq!(help.contains(messages.command_gui), cfg!(feature = "gui"));
             assert!(help.contains(messages.commands_heading));
             let mut add = command.find_subcommand("add").unwrap().clone();
             assert!(

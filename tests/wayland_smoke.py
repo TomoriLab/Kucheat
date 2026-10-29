@@ -48,6 +48,7 @@ def main():
         "XDG_CONFIG_HOME": str(root / "config"),
         "XDG_STATE_HOME": str(root / "state"),
         "XDG_DATA_HOME": str(root / "data"),
+        "XDG_CACHE_HOME": str(root / "cache"),
         "GDK_BACKEND": "wayland",
         "WAYLAND_DEBUG": "1",
         "LC_ALL": "ko_KR.UTF-8",
@@ -55,6 +56,11 @@ def main():
         "RUST_LOG": "kucheat=debug",
     })
     (root / "home").mkdir(exist_ok=True)
+    registration = subprocess.run([
+        "make", "--no-print-directory", "install-desktop",
+        f"INSTALL_BIN={arguments.application.resolve()}",
+    ], cwd=Path(__file__).resolve().parents[1], env=environment, capture_output=True, text=True, timeout=30)
+    assert registration.returncode == 0, registration.stderr
     port, native_port = available_port(), available_port()
     base_url = f"http://127.0.0.1:{port}"
     session = None
@@ -283,10 +289,17 @@ def main():
         assert execute("return document.documentElement.scrollWidth <= window.innerWidth")
         assert "데스크톱 앱에서" not in execute("return document.body.innerText")
         print("PASS: Native screenshot capture and layout bounds")
-        launcher = Path(__file__).resolve().parents[1] / "assets/kucheat.desktop"
+        launcher = root / "data/applications/kucheat.desktop"
         assert launcher.is_file()
         assert f'set_app_id("{launcher.stem}")' in (root / "native.log").read_text()
-        print("PASS: Wayland application ID matches the desktop launcher")
+        entry = launcher.read_text().splitlines()
+        assert f'Exec="{arguments.application.resolve()}"' in entry
+        assert "StartupWMClass=kucheat" in entry
+        assert "Icon=kucheat" in entry
+        icon = root / "data/icons/hicolor/512x512/apps/kucheat.png"
+        source_icon = Path(__file__).resolve().parents[1] / "assets/icons/kucheat.png"
+        assert icon.read_bytes() == source_icon.read_bytes()
+        print("PASS: Wayland application ID resolves to an installed launcher and Kucheat icon")
 
         daemon = subprocess.Popen([str(arguments.application.resolve()), "daemon"], env=environment, stdout=log, stderr=log)
         time.sleep(0.5)

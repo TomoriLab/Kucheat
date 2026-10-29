@@ -108,6 +108,8 @@ The frontend design and DOM contract are documented in [the frontend design cont
 
 The Tauri command names and payload casing, TOML configuration schema, CLI subcommands, XDG paths, and D-Bus names remain stable. JSON state additions remain backward compatible. The GUI continues to use native Wayland through GTK and does not force X11 or require a tray extension. There are no new runtime or development dependencies for the architectural split.
 
+Wayland taskbar identity requires an installed `kucheat.desktop` entry and its `kucheat` themed icon in the XDG data search path. An embedded window icon or matching source filename alone does not register the application with the desktop. `make install-desktop` registers the icon and launcher, then refreshes available GTK/GIO and KDE caches without rebuilding the binary or changing the service. Installation tests cover both default and explicit XDG paths; the native smoke suite compares the actual Wayland app ID against the installed entry and icon.
+
 Channel state and dashboard snapshots include a nullable `channel_image_url`. Older state files without this field remain readable and receive profile URLs during the next successful monitoring check. Profiles use the existing channel-info response without additional API requests. `ChannelAvatarView` loads only HTTPS NAVER CDN images allowed by the native CSP and retains initials when an image is missing or fails to load.
 
 Frontend source, tooling, and frontend tests remain strict TypeScript. Generated JavaScript belongs under `target/frontend/` or `target/tools/`, not in source directories. Cargo embeds compiled frontend assets only when the `gui` feature is enabled.

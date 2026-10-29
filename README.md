@@ -64,6 +64,18 @@ make install
 
 This installs the binary, a desktop launcher, the icon, and the systemd user service under `~/.local` and `~/.config`. Open **Kucheat** from the desktop application menu or run `kucheat`.
 
+Wayland taskbars resolve the icon through the installed `kucheat.desktop` launcher, not the WebView logo or GTK window icon alone. The launcher and `kucheat` icon are installed under `$XDG_DATA_HOME` (default `~/.local/share`), and available desktop/icon caches are refreshed. To repair desktop integration without rebuilding, replacing the binary, or changing the daemon:
+
+`install-desktop` does not install or update the executable. It checks that the target exists and advertises GUI support before changing desktop files. If an old CLI-only binary remains in `~/.local/bin`, use `make install` to install the current GUI build, or point `INSTALL_BIN` at an existing GUI build as shown below.
+
+```bash
+make install-desktop
+# Register a source-tree executable instead of ~/.local/bin/kucheat:
+make install-desktop INSTALL_BIN="$(pwd)/target/release/kucheat"
+```
+
+Close and reopen the GUI after registration. Running an uninstalled source binary without its desktop entry can show the compositor's generic Wayland icon. `make uninstall-desktop` removes only the launcher and icon.
+
 ```bash
 make uninstall
 ```
@@ -198,7 +210,8 @@ npm run check
 npm test
 
 # Native GUI regression tests require a Wayland session, Python 3.11+,
-# tauri-driver, WebKitWebDriver, and gdbus.
+# make, tauri-driver, WebKitWebDriver, and gdbus.
+# The smoke test installs its launcher and icon into isolated XDG directories.
 cargo build --locked
 dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat
 
