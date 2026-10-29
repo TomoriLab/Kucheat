@@ -6,6 +6,7 @@ The test uses isolated XDG directories. CHZZK access requires --profile-channel-
 """
 
 import argparse
+import ast
 import base64
 import json
 import os
@@ -113,6 +114,14 @@ def main():
             (root / "failure.png").write_bytes(base64.b64decode(image))
             raise AssertionError(f"{error}; hit test: {details}") from error
 
+    def tray_items():
+        names = subprocess.run([
+            "gdbus", "call", "--session", "--dest", "org.freedesktop.DBus",
+            "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.ListNames",
+        ], env=environment, capture_output=True, text=True, check=True, timeout=5)
+        return sorted(name for name in ast.literal_eval(names.stdout)[0]
+                      if name.startswith("org.kde.StatusNotifierItem-"))
+
     try:
         for _ in range(100):
             if driver.poll() is not None:
@@ -153,6 +162,20 @@ def main():
             time.sleep(0.1)
         assert dashboard["monitor"]["host"] == "gui"
         print("PASS: Native Wayland WebView and dashboard IPC")
+        for _ in range(50):
+            initial_tray_items = tray_items()
+            if len(initial_tray_items) == 1:
+                break
+            time.sleep(0.1)
+        else:
+            raise AssertionError("The GUI did not start its StatusNotifierItem service")
+        tray_identifier = subprocess.run([
+            "gdbus", "call", "--session", "--dest", initial_tray_items[0],
+            "--object-path", "/StatusNotifierItem", "--method", "org.freedesktop.DBus.Properties.Get",
+            "org.kde.StatusNotifierItem", "Id",
+        ], env=environment, capture_output=True, text=True, check=True, timeout=5)
+        assert "'kucheat'" in tray_identifier.stdout
+        print("PASS: GUI starts a Kucheat tray service without requiring a tray host")
 
         settings = {"check_interval_secs": 120, "notify_offline": True, "client_id": "test-client", "client_secret": "test-secret", "clear_client_secret": False}
         saved = invoke("save_settings", {"settings": settings})
@@ -305,6 +328,8 @@ def main():
         time.sleep(0.5)
         assert daemon.poll() is None
         assert invoke("get_dashboard")["monitor"]["host"] == "gui"
+        time.sleep(2.2)
+        assert tray_items() == initial_tray_items, "GUI and daemon registered duplicate tray icons"
         request("DELETE", f"/session/{session}")
         session = None
         for _ in range(50):
@@ -318,6 +343,14 @@ def main():
         else:
             raise AssertionError("The waiting daemon did not take over monitoring")
         print("PASS: GUI and daemon coexistence and monitoring handoff")
+        for _ in range(50):
+            current_tray_items = tray_items()
+            if len(current_tray_items) == 1 and current_tray_items != initial_tray_items:
+                break
+            time.sleep(0.1)
+        else:
+            raise AssertionError("The waiting daemon did not take over the single tray icon")
+        print("PASS: One tray icon across GUI/daemon coexistence and ownership handoff")
         print(f"Artifacts: {root}")
     finally:
         if session:

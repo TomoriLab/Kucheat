@@ -7,18 +7,25 @@ use tauri::Manager;
 
 use crate::application::ApplicationServices;
 use crate::infrastructure::dbus::{MonitorHost, MonitoringRuntime};
+use crate::presentation::tray::{StateSource, TrayApplication};
 use instance::DesktopInstance;
 
 pub struct GuiApplication {
     services: ApplicationServices,
     monitoring: Arc<MonitoringRuntime>,
+    tray: Arc<TrayApplication>,
 }
 
 impl GuiApplication {
-    pub fn new(services: ApplicationServices, monitoring: Arc<MonitoringRuntime>) -> Self {
+    pub fn new(
+        services: ApplicationServices,
+        monitoring: Arc<MonitoringRuntime>,
+        tray: Arc<TrayApplication>,
+    ) -> Self {
         Self {
             services,
             monitoring,
+            tray,
         }
     }
 
@@ -27,11 +34,17 @@ impl GuiApplication {
             return Ok(());
         };
         let monitoring = self.monitoring;
+        let tray = self.tray;
         tauri::Builder::default()
             .manage(self.services)
             .setup(move |application| {
                 tauri::async_runtime::block_on(instance.attach(application.handle().clone()))?;
                 application.manage(instance);
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = tray.run(StateSource::File).await {
+                        tracing::error!("Tray service failed: {error:#}");
+                    }
+                });
                 tauri::async_runtime::spawn(async move {
                     if let Err(error) = monitoring.run(MonitorHost::Gui, None).await {
                         tracing::error!("Monitoring service failed: {error:#}");

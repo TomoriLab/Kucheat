@@ -9,6 +9,7 @@ use tokio::sync::watch;
 use crate::application::ports::{BrowserLauncher, ConfigurationRepository, StateRepository};
 use crate::domain::config::ChannelConfig;
 use crate::domain::state::AppState;
+use crate::infrastructure::dbus::TrayLease;
 use crate::infrastructure::localization::NativeLocalizer;
 use menu::{TrayData, TrayMenu};
 
@@ -22,6 +23,15 @@ pub struct TrayApplication {
     states: Arc<dyn StateRepository>,
     browser: Arc<dyn BrowserLauncher>,
     localizer: Arc<NativeLocalizer>,
+}
+
+struct TrayRegistration(ksni::Handle<TrayMenu>);
+
+impl Drop for TrayRegistration {
+    fn drop(&mut self) {
+        // The ksni service owns a separate task and must stop when its owner is cancelled.
+        drop(self.0.shutdown());
+    }
 }
 
 impl TrayApplication {
@@ -39,7 +49,21 @@ impl TrayApplication {
         }
     }
 
-    pub async fn run(&self, source: StateSource) -> Result<()> {
+    pub async fn run(&self, mut source: StateSource) -> Result<()> {
+        loop {
+            if let Some(lease) = TrayLease::try_acquire().await? {
+                return self.run_owned(source, lease).await;
+            }
+            if let StateSource::Watch(receiver) = &mut source
+                && receiver.has_changed().is_err()
+            {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    }
+
+    async fn run_owned(&self, source: StateSource, _lease: TrayLease) -> Result<()> {
         let config = self.configuration.load()?;
         let mut last_language = config.settings.language;
         let mut last_identifiers: Vec<_> = config
@@ -49,7 +73,10 @@ impl TrayApplication {
             .collect();
         let data = Arc::new(Mutex::new(TrayData {
             channels: config.channels,
-            state: AppState::default(),
+            state: match &source {
+                StateSource::Watch(receiver) => receiver.borrow().clone(),
+                StateSource::File => self.states.load().unwrap_or_default(),
+            },
         }));
         let handle = TrayMenu::new(
             Arc::clone(&data),
@@ -60,6 +87,9 @@ impl TrayApplication {
         .spawn()
         .await
         .map_err(|error| anyhow::anyhow!("Failed to spawn tray: {error}"))?;
+        let registration = TrayRegistration(handle);
+        let handle = &registration.0;
+        tracing::info!("System tray service acquired");
         match source {
             StateSource::Watch(mut receiver) => {
                 let mut configuration_poll = tokio::time::interval(Duration::from_secs(2));
@@ -96,6 +126,7 @@ impl TrayApplication {
                 tokio::time::sleep(Duration::from_secs(3)).await;
             },
         }
+        handle.shutdown().await;
         Ok(())
     }
 

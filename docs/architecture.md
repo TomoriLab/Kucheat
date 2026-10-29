@@ -81,8 +81,8 @@ scripts/
 | `FileConfigurationRepository` | Hold a process-shared file lock across loading the latest configuration, applying one mutation, and atomically replacing changed content. |
 | `FileStateRepository` | Load and atomically replace monitor state without giving status/removal commands write ownership. |
 | Desktop and CHZZK adapters | Implement the injected browser, notification, autostart, and channel gateway ports without placing platform details in services. |
-| `GuiApplication`, `DesktopInstance` | Run Tauri on the main thread, delegate commands to application services, and activate the existing GUI instance through D-Bus. |
-| `CliApplication`, `TrayApplication` | Format CLI results and orchestrate daemon/tray lifetimes. The tray observes watch snapshots or persisted state without owning channel checks. |
+| `GuiApplication`, `DesktopInstance` | Run Tauri on the main thread, start the optional tray independently of monitoring, delegate commands to application services, and activate the existing GUI instance through D-Bus. |
+| `CliApplication`, `TrayApplication`, `TrayLease` | Format CLI results and orchestrate daemon/tray lifetimes. A session-wide tray lease prevents duplicate icons across GUI, daemon, and standalone tray processes. The tray observes watch snapshots or persisted state without owning channel checks. Its independent ksni service is shut down when the owner exits or is cancelled. |
 | `LanguagePreference`, `NativeLocalizer` | Keep stable language tags in configuration, resolve system defaults without creating files, and supply complete native catalogs to CLI, notification, and tray adapters. Existing language settings are re-read for each native action. |
 
 `ConfigurationRepository::update` is an atomic mutation contract, not an unrestricted overwrite operation. Implementations must apply the supplied mutation exactly once against the latest configuration. A failed mutation must not commit a partial change. This preserves concurrent CLI/GUI edits during network requests.

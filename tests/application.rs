@@ -9,3 +9,5 @@ mod monitoring;
 #[path = "application/settings.rs"]
 mod settings;
 mod support;
+#[path = "application/tray.rs"]
+mod tray;

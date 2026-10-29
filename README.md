@@ -94,6 +94,8 @@ kucheat gui
 
 The GUI monitors channels while its window is open. Closing the window exits the GUI; it does not hide in a potentially unavailable tray. Enable login autostart or the systemd daemon for notifications after the GUI closes.
 
+The GUI also starts the system tray when the desktop supports StatusNotifierItem. A separate session D-Bus name allows only one Kucheat tray across GUI, daemon, and standalone tray processes. Other processes wait and take over when the tray owner exits. If the desktop tray host starts late or restarts, the icon is registered again. A missing tray host does not prevent the GUI or monitoring from running.
+
 The GUI and CLI share the same configuration and state. A session D-Bus name ensures only one process monitors channels and sends notifications. An open GUI follows an existing daemon and takes over if it stops. A daemon started while the GUI owns monitoring waits for ownership. Starting the GUI again activates the existing window instead of opening another instance.
 
 API secrets are write-only in the GUI. A blank secret field preserves the stored value; the explicit clear option removes it. Configuration and state files are replaced atomically with owner-only permissions. Credentials remain in the local TOML configuration, not an encrypted credential store.
@@ -204,6 +206,7 @@ cargo clippy --locked --all-targets --all-features
 # Exercise D-Bus ownership and refresh IPC without affecting the desktop session.
 dbus-run-session -- cargo test --locked --all-features dbus_monitor_has_one_owner_and_accepts_refresh -- --ignored
 dbus-run-session -- cargo test --locked --all-features localized_notification_delivery -- --ignored
+dbus-run-session -- cargo test --locked --all-features dbus_tray -- --ignored
 
 # TypeScript type checking and frontend state/controller/transport tests.
 npm run check

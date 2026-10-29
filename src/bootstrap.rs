@@ -120,6 +120,7 @@ pub fn run() -> Result<()> {
         return crate::presentation::gui::GuiApplication::new(
             components.services,
             components.monitoring,
+            components.tray,
         )
         .run();
     }
