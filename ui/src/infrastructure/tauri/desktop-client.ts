@@ -1,7 +1,8 @@
+import { createChannelSearchPayload, normalizeChannelSearchResults } from "../../domain/channel-search.ts";
 import { CodedError } from "../../domain/errors.ts";
 import type { DesktopClient } from "../../application/ports/desktop-client.ts";
 import { createChannelPayload, createSettingsPayload } from "../../domain/rules.ts";
-import type { Channel, Dashboard, SettingsFormValues } from "../../domain/types.ts";
+import type { Channel, ChannelSearchResults, Dashboard, SettingsFormValues } from "../../domain/types.ts";
 import type { NativeArguments, NativeCommand, NativeInvoke, NativeResults } from "./contracts.ts";
 
 export class BridgeUnavailableError extends CodedError {
@@ -22,6 +23,14 @@ export class TauriDesktopClient implements DesktopClient {
   get available(): boolean { return typeof this.#invoke === "function"; }
 
   getDashboard(): Promise<Dashboard> { return this.call("get_dashboard"); }
+
+  async searchChannels(query: string, offset = 0): Promise<ChannelSearchResults> {
+    const payload = createChannelSearchPayload(query, offset);
+    const invoke = this.#invoke;
+    if (typeof invoke !== "function") throw new BridgeUnavailableError();
+    // Discovery never joins the dashboard/mutation queue because network latency must not block management.
+    return normalizeChannelSearchResults(await invoke("search_channels", payload), offset);
+  }
 
   addChannel(input: string, name: string | null, channels?: readonly Pick<Channel, "id">[]): Promise<Dashboard> {
     return this.call("add_channel", createChannelPayload(input, name, channels));

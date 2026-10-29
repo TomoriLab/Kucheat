@@ -155,6 +155,7 @@ test("save_settings includes supplied language without changing command casing o
   const results: NativeResults = {
     get_dashboard: snapshot, add_channel: snapshot, remove_channel: snapshot, save_settings: snapshot,
     set_auto_launch: snapshot, refresh_channels: undefined, open_channel: undefined, send_test_notification: undefined,
+    search_channels: { channels: [], next_offset: null },
   };
   const client = new TauriDesktopClient(async (command, ...argumentsValue) => {
     calls.push([command, ...argumentsValue]);

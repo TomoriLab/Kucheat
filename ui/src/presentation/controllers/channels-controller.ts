@@ -1,3 +1,4 @@
+import type { StreamerSearchController } from "./streamer-search-controller.ts";
 import type { Localizer } from "../../localization/localizer.ts";
 import type { ApplicationActions } from "../../application/application-controller.ts";
 import type { DesktopClient } from "../../application/ports/desktop-client.ts";
@@ -19,12 +20,14 @@ export class ChannelsController implements ScreenController {
   readonly #feedback: Feedback;
   readonly #events = new EventBindings();
   readonly #localizer: Localizer;
+  readonly #search: StreamerSearchController;
 
   constructor(
     view: ChannelsView, dialogs: ChannelDialogsView, library: ChannelLibrary,
     state: DashboardState, client: DesktopClient, application: ApplicationActions, feedback: Feedback,
-    localizer: Localizer,
+    localizer: Localizer, search: StreamerSearchController,
   ) {
+    this.#search = search;
     this.#localizer = localizer;
     this.#view = view;
     this.#dialogs = dialogs;
@@ -36,6 +39,7 @@ export class ChannelsController implements ScreenController {
   }
 
   start(): void {
+    this.#search.start();
     const controls = this.#view.controls;
     for (const button of controls.filters) this.#events.listen(button, "click", () => {
       const filter = button.dataset.filter;
@@ -76,6 +80,7 @@ export class ChannelsController implements ScreenController {
       this.#events.listen(dialog, "cancel", (event) => { if (this.#state.operation) event.preventDefault(); });
       this.#events.listen(dialog, "close", () => {
         this.#dialogs.restoreFocus(identifier);
+        if (identifier === "add-dialog" && !dialog.open) this.#search.close();
         if (identifier === "delete-dialog") this.#library.clearDeletion();
       });
     }
@@ -84,7 +89,7 @@ export class ChannelsController implements ScreenController {
     this.#events.listen(dialogControls.identifier, "input", () => this.#dialogs.clearAddError());
   }
 
-  dispose(): void { this.#events.dispose(); }
+  dispose(): void { this.#events.dispose(); this.#search.dispose(); }
 
   render(): void {
     this.#view.render(this.#state.dashboard, this.#library, this.#client.available, this.#state.loading,
@@ -95,6 +100,7 @@ export class ChannelsController implements ScreenController {
     this.#view.renderControls(!this.#application.ready || Boolean(this.#state.operation),
       this.#state.operation, Boolean(this.#state.dashboard?.monitor.checking));
     this.#dialogs.renderControls(this.#state.operation);
+    this.#search.render();
   }
 
   private clearSearch(): void {
@@ -104,7 +110,9 @@ export class ChannelsController implements ScreenController {
   }
 
   private openAdd(invoker: HTMLElement): void {
-    if (this.#application.ready && !this.#state.operation) this.#dialogs.openAdd(invoker);
+    if (!this.#application.ready || this.#state.operation) return;
+    this.#dialogs.openAdd(invoker);
+    this.#search.open();
   }
 
   private handleRowAction(event: Event): void {

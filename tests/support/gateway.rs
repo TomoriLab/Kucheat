@@ -6,12 +6,16 @@ use anyhow::Result;
 use kucheat::application::ports::{ChannelGateway, ChannelGatewayFactory, PortFuture};
 use kucheat::domain::channel::{ChannelInfo, LiveStatus};
 use kucheat::domain::config::ApiConfig;
+use kucheat::domain::search::ChannelSearchPage;
 
 #[derive(Default)]
 pub struct FakeChannelGateway {
     statuses: Mutex<HashMap<String, LiveStatus>>,
     pub information_requests: Mutex<Vec<String>>,
     pub status_requests: Mutex<Vec<String>>,
+    pub search_requests: Mutex<Vec<(String, u32)>>,
+    pub search_result: Mutex<Option<ChannelSearchPage>>,
+    pub before_search_returns: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
 impl FakeChannelGateway {
@@ -58,6 +62,27 @@ impl ChannelGateway for FakeChannelGateway {
                 .get(identifier)
                 .cloned()
                 .ok_or_else(|| anyhow::anyhow!("Channel unavailable"))
+        })
+    }
+
+    fn search_channels<'a>(
+        &'a self,
+        query: &'a str,
+        offset: u32,
+    ) -> PortFuture<'a, ChannelSearchPage> {
+        Box::pin(async move {
+            self.search_requests
+                .lock()
+                .unwrap()
+                .push((query.to_owned(), offset));
+            if let Some(callback) = self.before_search_returns.lock().unwrap().take() {
+                callback();
+            }
+            self.search_result
+                .lock()
+                .unwrap()
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("Search unavailable"))
         })
     }
 }

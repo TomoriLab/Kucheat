@@ -3,9 +3,11 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
+use super::search::{SearchResponse, search_url};
 use crate::application::ports::{ChannelGateway, ChannelGatewayFactory, PortFuture};
 use crate::domain::channel::{ChannelInfo, LiveStatus};
 use crate::domain::config::ApiConfig;
+use crate::domain::search::ChannelSearchPage;
 
 const OFFICIAL_BASE_URL: &str = "https://openapi.chzzk.naver.com";
 const UNOFFICIAL_BASE_URL: &str = "https://api.chzzk.naver.com";
@@ -191,6 +193,16 @@ impl ChzzkClient {
         self.fetch_json(&url, false).await
     }
 
+    pub async fn search_channel_names(
+        &self,
+        query: &str,
+        offset: u32,
+    ) -> Result<ChannelSearchPage> {
+        let url = search_url(UNOFFICIAL_BASE_URL, query, offset)?;
+        let response: SearchResponse = self.fetch_json(url.as_str(), false).await?;
+        Ok(response.into_page())
+    }
+
     // -----------------------------------------------------------------------
     // Live detail (always unofficial)
     // -----------------------------------------------------------------------
@@ -254,6 +266,14 @@ impl ChannelGateway for ChzzkClient {
     fn live_status<'a>(&'a self, identifier: &'a str) -> PortFuture<'a, LiveStatus> {
         Box::pin(self.check_channel_live(identifier))
     }
+
+    fn search_channels<'a>(
+        &'a self,
+        query: &'a str,
+        offset: u32,
+    ) -> PortFuture<'a, ChannelSearchPage> {
+        Box::pin(self.search_channel_names(query, offset))
+    }
 }
 
 pub struct ChzzkGatewayFactory;
@@ -297,6 +317,49 @@ mod tests {
                 .to_string()
                 .contains("Failed to parse API response")
         );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn search_requests_do_not_send_api_credentials() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut buffer = [0; 1024];
+                let count = socket.read(&mut buffer).await.unwrap();
+                assert!(count > 0);
+                request.extend_from_slice(&buffer[..count]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let request = String::from_utf8(request).unwrap().to_ascii_lowercase();
+            assert!(request.starts_with("get /service/v1/search/channels?"));
+            assert!(request.contains("offset=20"));
+            assert!(!request.contains("client-id:"));
+            assert!(!request.contains("client-secret:"));
+            let body = r#"{"code":200,"content":{"data":[],"page":{"next":null}}}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            socket.write_all(response.as_bytes()).await.unwrap();
+        });
+        let client = ChzzkClient::new(&ApiConfig {
+            client_id: "private-id".to_owned(),
+            client_secret: "private-secret".to_owned(),
+        })
+        .unwrap();
+        let url = search_url(&format!("http://{address}"), "Streamer & 日本語", 20).unwrap();
+        let page = client
+            .fetch_json::<SearchResponse>(url.as_str(), false)
+            .await
+            .unwrap()
+            .into_page();
+        assert!(page.channels.is_empty());
         server.await.unwrap();
     }
 }

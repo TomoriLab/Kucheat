@@ -54,6 +54,7 @@ impl GuiApplication {
             })
             .invoke_handler(tauri::generate_handler![
                 commands::get_dashboard,
+                commands::search_channels,
                 commands::add_channel,
                 commands::remove_channel,
                 commands::save_settings,

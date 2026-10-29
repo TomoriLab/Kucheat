@@ -74,6 +74,7 @@ scripts/
 | --- | --- |
 | `ChannelId` | Validate and normalize a channel ID or supported URL before network or browser access. |
 | `ChannelService` | Coordinate channel registration and gateway lookup. GUI registration rejects duplicates; CLI upsert preserves replacement behavior. Recheck duplicates inside the repository mutation after any slow API request. Status queries do not persist monitor-owned transitions. |
+| `ChannelSearchService` | Validate a trimmed name query and bounded page offset, call the injected gateway, normalize and deduplicate results, and mark registration from the latest configuration. Searching never creates configuration files, writes monitor state, or sends notifications. |
 | `SettingsService` | Validate settings and mutate only settings/credentials in the latest configuration. Preserve channels and blank/null secrets; explicit clearing takes precedence. Request monitor refresh after a successful update. |
 | `DashboardService` | Assemble registered channels, settings, desktop status, and monitor status. Distinguish unknown state from offline state. Expose credential presence, never the stored secret. |
 | `MonitoringService` | Reload changed configuration, check channels, and own live/offline transition state. Persist a transition before delivering its notification. Restore the prior in-memory transition and suppress notification if persistence fails. |
@@ -123,6 +124,12 @@ Native language models live in `src/domain/localization.rs`, while catalogs and 
 The frontend owns its injected localization object and complete language catalogs. Views and controllers request translated messages instead of embedding user-facing prose; HTML language, document titles, accessible attributes, and date/number formatting follow the selected locale. Application state and settings drafts remain independent of translated presentation. Language is persisted only through the native settings contract, not localStorage. OS/API/parser diagnostics and streamer content remain untranslated.
 
 Native tests cover language serialization, legacy settings, catalog completeness, placeholder parity, CLI help/output, and actual notification messages over an isolated D-Bus. The Wayland smoke suite exercises all four GUI languages, settings persistence, localized validation, and matching CLI output.
+
+## Streamer discovery
+
+`search_channels` accepts `{query, offset}` and returns `{channels, next_offset}`. Queries contain 1–100 Unicode scalar values after trimming; offsets range from 0 through 1000 and pages contain at most 20 results. The CHZZK adapter uses the public channel-search endpoint with URL-encoded parameters and no API credential headers. Missing images and follower counts remain nullable. API failures propagate instead of producing simulated results.
+
+Discovery is separate from filtering the registered channel library. Search results are transient; selecting a result uses the existing `add_channel` service and its duplicate checks. The frontend search transport is read-only and independent of the serialized dashboard/mutation queue. Search state uses request and dialog lifetimes so older queries, closed dialogs, and disposed controllers cannot overwrite newer results. The existing profile-image URL policy and all four localization catalogs also apply to search results.
 
 ## Adding or changing behavior
 

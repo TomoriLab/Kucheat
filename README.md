@@ -88,7 +88,7 @@ kucheat
 kucheat gui
 ```
 
-- **Channels:** add a 32-character CHZZK channel ID or an HTTPS channel/live URL, optionally choose a display name, search and filter channels, open streams, and remove channels with confirmation.
+- **Channels:** search CHZZK streamers by name and add a result, or enter a 32-character channel ID or HTTPS channel/live URL directly. Results include profile images, live status, follower counts, and existing registration status. The channel-library search box continues to filter only registered channels.
 - **Live status:** show stream titles, categories, viewer counts, and check timestamps. Channels that have not been checked remain distinct from offline channels. Manual refresh requests a check from the active monitor.
 - **Settings:** configure the check interval, offline notifications, optional API credentials, language, login autostart, and appearance. Send a test desktop notification to verify notification delivery.
 
@@ -220,6 +220,9 @@ dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat
 
 # Optionally verify an actual streamer's profile image (requires CHZZK/CDN access).
 dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat --profile-channel-id <CHANNEL_ID>
+
+# Optionally verify real streamer name search and adding a search result.
+dbus-run-session -- python3 tests/wayland_smoke.py target/debug/kucheat --search-query "침착맨"
 ```
 
 ## License

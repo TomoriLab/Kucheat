@@ -37,6 +37,10 @@ const dashboard: Dashboard = {
 };
 const nativeResults: NativeResults = {
   get_dashboard: dashboard,
+  search_channels: { channels: [{
+    id: secondIdentifier, name: "라이브 채널", channel_image_url: "https://nng-phinf.pstatic.net/profile.png",
+    is_live: true, follower_count: 1234, registered: false,
+  }], next_offset: null },
   add_channel: dashboard,
   remove_channel: dashboard,
   save_settings: dashboard,
@@ -150,6 +154,8 @@ test("every IPC command has the exact native command name, payload, and result",
   assert.equal(await client.openChannel(firstIdentifier, true), undefined);
   assert.equal(await client.openChannel(firstIdentifier, false), undefined);
   assert.equal(await client.sendTestNotification(), undefined);
+  assert.deepEqual(await client.searchChannels("  Streamer  "), nativeResults.search_channels);
+  assert.deepEqual(await client.searchChannels("Streamer", 20), nativeResults.search_channels);
   assert.deepEqual(calls, [
     ["get_dashboard"],
     ["add_channel", { channelId: firstIdentifier, name: "표시 이름" }],
@@ -160,6 +166,8 @@ test("every IPC command has the exact native command name, payload, and result",
     ["open_channel", { channelId: firstIdentifier, live: true }],
     ["open_channel", { channelId: firstIdentifier, live: false }],
     ["send_test_notification"],
+    ["search_channels", { query: "Streamer", offset: 0 }],
+    ["search_channels", { query: "Streamer", offset: 20 }],
   ]);
 });
 

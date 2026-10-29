@@ -5,7 +5,7 @@ mod repositories;
 use std::sync::{Arc, Mutex};
 
 use kucheat::application::services::{
-    ChannelService, DashboardService, MonitoringService, SettingsService,
+    ChannelSearchService, ChannelService, DashboardService, MonitoringService, SettingsService,
 };
 use kucheat::domain::config::Config;
 
@@ -65,6 +65,10 @@ impl TestApplication {
             desktop: Arc::new(FakeDesktop::new(events.clone())),
             events,
         }
+    }
+
+    pub fn search(&self) -> ChannelSearchService {
+        ChannelSearchService::new(self.configuration.clone(), self.gateways.clone())
     }
 
     pub fn channels(&self) -> ChannelService {

@@ -7,7 +7,7 @@ use crate::application::ports::{
     MonitorControl, NotificationSender, StateRepository,
 };
 use crate::application::services::{
-    ChannelService, DashboardService, MonitoringService, SettingsService,
+    ChannelSearchService, ChannelService, DashboardService, MonitoringService, SettingsService,
 };
 use crate::infrastructure::chzzk::ChzzkGatewayFactory;
 use crate::infrastructure::dbus::{DbusMonitorClient, MonitoringRuntime};
@@ -62,6 +62,10 @@ impl ApplicationComponents {
         ));
         Ok(Self {
             services: ApplicationServices {
+                search: Arc::new(ChannelSearchService::new(
+                    configuration.clone(),
+                    gateways.clone(),
+                )),
                 channels: Arc::new(ChannelService::new(
                     configuration.clone(),
                     states.clone(),

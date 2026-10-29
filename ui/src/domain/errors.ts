@@ -1,6 +1,7 @@
 export type ErrorCode = "invalidChannelInput" | "invalidChannelHost" | "missingChannelId"
   | "duplicateChannel" | "longChannelName" | "invalidInterval" | "conflictingSecret"
-  | "invalidLanguage" | "invalidDashboard" | "bridgeUnavailable" | "unknownError";
+  | "invalidLanguage" | "invalidDashboard" | "bridgeUnavailable" | "unknownError"
+  | "invalidStreamerQuery" | "invalidSearchOffset" | "invalidSearchResults";
 
 export class CodedError extends Error {
   readonly code: ErrorCode;

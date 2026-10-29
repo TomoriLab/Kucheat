@@ -297,6 +297,19 @@ dialog::backdrop { background: var(--overlay); }
 .dialog-body > .field-help { font-size: 12px; margin-top: -12px; }
 .dialog-footer { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface-secondary); border-radius: 0 0 8px 8px; }
 .dialog-footer .button { min-width: 76px; }
+.streamer-search { display: grid; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.streamer-search-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.streamer-search-controls input { flex: 1 1 160px; background: var(--surface); border: 1px solid var(--control-border); border-bottom-color: var(--secondary); border-radius: var(--radius-control); padding: 6px 10px; min-height: 34px; font-size: 13px; }
+.streamer-search-controls input:disabled { color: var(--disabled-text); background: var(--disabled-background); border-color: var(--border); }
+.streamer-search-controls input[aria-invalid="true"] { border-color: var(--danger); }
+.streamer-search-controls .button { flex: 0 0 auto; }
+#streamer-search-results { display: grid; gap: 8px; max-height: 280px; overflow-y: auto; }
+.streamer-search-result { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-secondary); }
+.streamer-search-copy { flex: 1 1 120px; min-width: 0; }
+.streamer-search-result > .button { max-width: 100%; margin-left: auto; }
+.streamer-search-result[data-state="live"] .state-badge { color: var(--success); background: var(--success-surface); }
+#streamer-search-status { white-space: pre-wrap; overflow-wrap: anywhere; }
+.streamer-search-error { color: var(--danger); }
 /* Transient status messages do not intercept interaction with underlying controls. */
 .toast { display: flex; align-items: center; gap: 10px; position: fixed; bottom: 24px; left: calc(50% + 98px); transform: translateX(-50%); max-width: min(540px, calc(100vw - 48px)); width: max-content; padding: 8px 8px 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); font-size: 13px; z-index: 5; pointer-events: none; }
 .toast > .icon { color: var(--success); width: 18px; height: 18px; }

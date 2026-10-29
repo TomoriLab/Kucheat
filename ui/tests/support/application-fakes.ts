@@ -2,7 +2,7 @@ import { resolveText } from "../../src/localization/localizer.ts";
 import type { LocalizedText } from "../../src/localization/localizer.ts";
 import type { DesktopClient } from "../../src/application/ports/desktop-client.ts";
 import type { ApplicationView, ErrorTarget, Feedback, Scheduler, ScreenController } from "../../src/application/ports/presentation.ts";
-import type { Dashboard } from "../../src/domain/types.ts";
+import type { Channel, ChannelSearchResults, Dashboard } from "../../src/domain/types.ts";
 import { dashboard } from "./dashboard.ts";
 
 export class Deferred<Value> {
@@ -28,7 +28,8 @@ export class FakeDesktopClient implements DesktopClient {
     return request.promise;
   }
 
-  async addChannel(): Promise<Dashboard> { return dashboard(); }
+  async searchChannels(_query: string, _offset = 0): Promise<ChannelSearchResults> { return { channels: [], next_offset: null }; }
+  async addChannel(_input: string, _name: string | null, _channels?: readonly Pick<Channel, "id">[]): Promise<Dashboard> { return dashboard(); }
   async removeChannel(): Promise<Dashboard> { return dashboard(); }
   async saveSettings(): Promise<Dashboard> { return dashboard(); }
   async setAutoLaunch(): Promise<Dashboard> { return dashboard(); }

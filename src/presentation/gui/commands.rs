@@ -1,5 +1,5 @@
 use crate::application::ApplicationServices;
-use crate::application::dto::{Dashboard, SettingsInput};
+use crate::application::dto::{ChannelSearchResults, Dashboard, SettingsInput};
 
 type CommandResult<T> = Result<T, String>;
 
@@ -12,6 +12,19 @@ pub async fn get_dashboard(
     services: tauri::State<'_, ApplicationServices>,
 ) -> CommandResult<Dashboard> {
     services.dashboard.load().await.map_err(command_error)
+}
+
+#[tauri::command]
+pub async fn search_channels(
+    query: String,
+    offset: u32,
+    services: tauri::State<'_, ApplicationServices>,
+) -> CommandResult<ChannelSearchResults> {
+    services
+        .search
+        .search(&query, offset)
+        .await
+        .map_err(command_error)
 }
 
 #[tauri::command]

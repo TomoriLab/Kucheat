@@ -2,7 +2,7 @@
 """Exercise the native WebKitGTK GUI on Wayland through the W3C WebDriver protocol.
 
 Run inside dbus-run-session with tauri-driver and WebKitWebDriver installed.
-The test uses isolated XDG directories. CHZZK access requires --profile-channel-id.
+The test uses isolated XDG directories. CHZZK access requires --profile-channel-id or --search-query.
 """
 
 import argparse
@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--native-driver", default=shutil.which("WebKitWebDriver"))
     parser.add_argument("--artifacts", type=Path)
     parser.add_argument("--profile-channel-id", help="Optionally verify a real streamer's profile image through CHZZK and its CDN")
+    parser.add_argument("--search-query", help="Optionally verify real streamer name search, pagination, and result registration")
     arguments = parser.parse_args()
     if not os.environ.get("WAYLAND_DISPLAY"):
         parser.error("A running Wayland session is required")
@@ -200,6 +201,11 @@ def main():
         assert not invoke("set_auto_launch", {"enabled": False})["auto_launch"]
         invoke("refresh_channels")
         print("PASS: Channel validation, safe URL opening, login autostart, and refresh IPC")
+        before_search_validation = config_path.read_bytes()
+        for query, offset in [("", 0), ("字" * 101, 0), ("Streamer", 1001), ("Streamer", -1)]:
+            invoke("search_channels", {"query": query, "offset": offset}, success=False)
+        assert config_path.read_bytes() == before_search_validation
+        print("PASS: Read-only streamer search input and pagination validation")
 
         wait_for("return !document.querySelector('#add-channel').disabled")
         click('[data-page="settings"]')
@@ -280,6 +286,45 @@ def main():
         assert invoke("get_dashboard")["settings"]["language"] == "system"
         click('[data-page="channels"]')
         print("PASS: Four GUI languages, localized validation, draft/reset preservation, and shared CLI preference")
+
+        if arguments.search_query:
+            query = arguments.search_query
+            original_config = config_path.read_bytes()
+            results = invoke("search_channels", {"query": query, "offset": 0})
+            assert 0 < len(results["channels"]) <= 20
+            assert config_path.read_bytes() == original_config
+            selected = results["channels"][0]
+            identifier = selected["id"]
+            assert len(identifier) == 32 and not selected["registered"]
+            assert selected["name"] and isinstance(selected["is_live"], bool)
+            if results["next_offset"] is not None:
+                page = invoke("search_channels", {"query": query, "offset": results["next_offset"]})
+                assert len(page["channels"]) <= 20
+                assert config_path.read_bytes() == original_config
+            click("#add-channel")
+            execute("document.querySelector('#new-channel-id').value = 'manual draft'; document.querySelector('#new-channel-name').value = 'Custom draft'; const input = document.querySelector('#streamer-search'); input.value = arguments[0]; input.dispatchEvent(new Event('input', { bubbles: true }));", query)
+            click("#search-streamers")
+            wait_for("return Array.from(document.querySelectorAll('.streamer-search-result')).some(row => row.dataset.channelId === arguments[0])", identifier)
+            assert execute("return document.querySelector('#new-channel-id').value") == "manual draft"
+            assert execute("return document.querySelector('#new-channel-name').value") == "Custom draft"
+            assert invoke("get_dashboard")["channels"] == []
+            image = request("GET", f"/session/{session}/screenshot")
+            (root / "streamer-search.png").write_bytes(base64.b64decode(image))
+            click(f'button[data-search-add="{identifier}"]')
+            wait_for("return !document.querySelector('#add-dialog').open")
+            dashboard = invoke("get_dashboard")
+            assert len(dashboard["channels"]) == 1
+            assert dashboard["channels"][0]["id"] == identifier
+            assert dashboard["channels"][0]["name"] != "Custom draft"
+            registered = invoke("search_channels", {"query": query, "offset": 0})
+            assert next(channel for channel in registered["channels"] if channel["id"] == identifier)["registered"]
+            click("#add-channel")
+            execute("const input = document.querySelector('#streamer-search'); input.value = arguments[0]; input.dispatchEvent(new Event('input', { bubbles: true }));", query)
+            click("#search-streamers")
+            wait_for("return Array.from(document.querySelectorAll('button[data-search-add]')).some(button => button.dataset.searchAdd === arguments[0] && button.disabled)", identifier)
+            click('[data-close-dialog="add-dialog"]')
+            invoke("remove_channel", {"channelId": identifier})
+            print("PASS: Real streamer search, pagination, manual draft preservation, result add, and duplicate prevention")
 
         if arguments.profile_channel_id:
             identifier = arguments.profile_channel_id

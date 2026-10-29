@@ -6,6 +6,8 @@ mod dashboard;
 mod localization;
 #[path = "application/monitoring.rs"]
 mod monitoring;
+#[path = "application/search.rs"]
+mod search;
 #[path = "application/settings.rs"]
 mod settings;
 mod support;

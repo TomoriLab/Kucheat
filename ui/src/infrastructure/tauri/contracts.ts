@@ -1,10 +1,11 @@
 import type {
-  AddChannelPayload, Dashboard, OpenChannelPayload, RemoveChannelPayload,
+  AddChannelPayload, ChannelSearchPayload, ChannelSearchResults, Dashboard, OpenChannelPayload, RemoveChannelPayload,
   SaveSettingsPayload, SetAutoLaunchPayload,
 } from "../../domain/types.ts";
 
 export interface NativePayloads {
   get_dashboard: undefined;
+  search_channels: ChannelSearchPayload;
   add_channel: AddChannelPayload;
   remove_channel: RemoveChannelPayload;
   save_settings: SaveSettingsPayload;
@@ -16,6 +17,7 @@ export interface NativePayloads {
 
 export interface NativeResults {
   get_dashboard: Dashboard;
+  search_channels: ChannelSearchResults;
   add_channel: Dashboard;
   remove_channel: Dashboard;
   save_settings: Dashboard;

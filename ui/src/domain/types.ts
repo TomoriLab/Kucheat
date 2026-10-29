@@ -82,3 +82,22 @@ export type Theme = "system" | "light" | "dark";
 
 export type Locale = "ko" | "en" | "ja" | "zh-TW";
 export type LanguagePreference = "system" | Locale;
+
+export interface ChannelSearchPayload {
+  query: string;
+  offset: number;
+}
+
+export interface ChannelSearchResult {
+  id: string;
+  name: string;
+  channel_image_url: string | null;
+  is_live: boolean;
+  follower_count: number | null;
+  registered: boolean;
+}
+
+export interface ChannelSearchResults {
+  channels: ChannelSearchResult[];
+  next_offset: number | null;
+}

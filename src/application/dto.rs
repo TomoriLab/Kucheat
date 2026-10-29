@@ -52,6 +52,22 @@ impl ChannelView {
     }
 }
 
+#[derive(Serialize)]
+pub struct ChannelSearchResults {
+    pub channels: Vec<ChannelSearchView>,
+    pub next_offset: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct ChannelSearchView {
+    pub id: String,
+    pub name: String,
+    pub channel_image_url: Option<String>,
+    pub is_live: bool,
+    pub follower_count: Option<i64>,
+    pub registered: bool,
+}
+
 #[derive(Deserialize)]
 pub struct SettingsInput {
     pub check_interval_secs: u64,

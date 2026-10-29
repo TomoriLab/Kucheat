@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::domain::channel::{ChannelInfo, LiveStatus};
 use crate::domain::config::{ApiConfig, Config};
 use crate::domain::monitoring::MonitorStatus;
+use crate::domain::search::ChannelSearchPage;
 use crate::domain::state::AppState;
 use anyhow::Result;
 
@@ -27,6 +28,11 @@ pub trait StateRepository: Send + Sync {
 pub trait ChannelGateway: Send + Sync {
     fn channel_info<'a>(&'a self, identifier: &'a str) -> PortFuture<'a, ChannelInfo>;
     fn live_status<'a>(&'a self, identifier: &'a str) -> PortFuture<'a, LiveStatus>;
+    fn search_channels<'a>(
+        &'a self,
+        query: &'a str,
+        offset: u32,
+    ) -> PortFuture<'a, ChannelSearchPage>;
 }
 
 pub trait ChannelGatewayFactory: Send + Sync {
