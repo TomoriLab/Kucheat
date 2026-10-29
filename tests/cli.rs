@@ -19,8 +19,13 @@ impl Sandbox {
     }
 
     fn run(&self, arguments: &[&str]) -> Output {
+        self.run_locale(arguments, "ko_KR.UTF-8")
+    }
+
+    fn run_locale(&self, arguments: &[&str], locale: &str) -> Output {
         Command::new(env!("CARGO_BIN_EXE_kucheat"))
             .args(arguments)
+            .env("LC_ALL", locale)
             .env("HOME", self.0.join("home"))
             .env("XDG_CONFIG_HOME", self.0.join("config"))
             .env("XDG_STATE_HOME", self.0.join("state"))
@@ -157,4 +162,58 @@ fn cli_status_and_removal_do_not_overwrite_monitor_state() {
             .success()
     );
     assert_eq!(fs::read(&state_path).unwrap(), original);
+}
+
+#[test]
+fn cli_localizes_system_language_and_help_without_creating_configuration() {
+    for (locale, description, empty) in [
+        (
+            "ko_KR.UTF-8",
+            "Linux용 CHZZK 라이브 알림",
+            "등록된 채널이 없습니다.",
+        ),
+        (
+            "en_US.UTF-8",
+            "CHZZK live notifications for Linux",
+            "No channels registered.",
+        ),
+        (
+            "ja_JP.UTF-8",
+            "Linux 向け CHZZK ライブ通知",
+            "登録されているチャンネルはありません。",
+        ),
+        (
+            "zh_TW.UTF-8",
+            "Linux 版 CHZZK 直播通知",
+            "尚未新增任何頻道。",
+        ),
+    ] {
+        let sandbox = Sandbox::new();
+        let help = sandbox.run_locale(&["--help"], locale);
+        assert!(help.status.success(), "{:?}", help.stderr);
+        assert!(String::from_utf8_lossy(&help.stdout).contains(description));
+        assert!(!sandbox.0.join("config/kucheat/config.toml").exists());
+        let output = sandbox.run_locale(&["list"], locale);
+        assert!(output.status.success(), "{:?}", output.stderr);
+        assert!(String::from_utf8_lossy(&output.stdout).contains(empty));
+    }
+}
+
+#[test]
+fn saved_language_overrides_system_and_unsupported_system_language_falls_back_to_english() {
+    let sandbox = Sandbox::new();
+    let output = sandbox.run_locale(&["list"], "fr_FR.UTF-8");
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("No channels registered."));
+    let path = sandbox.0.join("config/kucheat/config.toml");
+    let content = fs::read_to_string(&path)
+        .unwrap()
+        .replace("language = \"system\"", "language = \"zh-TW\"");
+    fs::write(&path, content).unwrap();
+    let output = sandbox.run_locale(&["list"], "en_US.UTF-8");
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("尚未新增任何頻道。"));
+    let help = sandbox.run_locale(&["add", "--help"], "en_US.UTF-8");
+    assert!(help.status.success());
+    assert!(String::from_utf8_lossy(&help.stdout).contains("新增要監控的頻道"));
 }

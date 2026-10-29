@@ -1,3 +1,5 @@
+import { normalizeLanguage } from "../../domain/language.ts";
+import type { Localizer } from "../../localization/localizer.ts";
 import type { DashboardState } from "../../application/state/dashboard-state.ts";
 import type { SettingsFormValues } from "../../domain/types.ts";
 import { element, setText } from "../dom/elements.ts";
@@ -6,11 +8,14 @@ export class SettingsView {
   readonly controls;
   readonly #document: Document;
   readonly #status;
+  readonly #localizer: Localizer;
 
-  constructor(document: Document) {
+  constructor(document: Document, localizer: Localizer) {
+    this.#localizer = localizer;
     this.#document = document;
     this.controls = {
       form: element(document, "settings-form", "form"),
+      language: element(document, "language", "select"),
       interval: element(document, "check-interval", "input"),
       notifyOffline: element(document, "notify-offline", "input"),
       clientId: element(document, "client-id", "input"),
@@ -41,6 +46,7 @@ export class SettingsView {
       interval: controls.interval.value, notifyOffline: controls.notifyOffline.checked,
       clientId: controls.clientId.value, clientSecret: controls.clientSecret.value,
       clearClientSecret: controls.clearSecret.checked,
+      language: normalizeLanguage(controls.language.value),
     };
   }
 
@@ -50,6 +56,7 @@ export class SettingsView {
     this.controls.clientId.value = values.clientId;
     this.controls.clientSecret.value = values.clientSecret || "";
     this.controls.clearSecret.checked = values.clearClientSecret;
+    this.controls.language.value = normalizeLanguage(values.language);
   }
 
   clearValidation(): void {
@@ -66,28 +73,27 @@ export class SettingsView {
   focusInterval(): void { this.controls.interval.focus(); }
 
   renderControls(state: DashboardState, ready: boolean, dirty: boolean): void {
+    const localizer = this.#localizer;
     const { dashboard, operation } = state;
     const blocked = !ready || Boolean(operation);
     const controls = this.controls;
     controls.save.disabled = blocked || !dirty;
     controls.reset.disabled = blocked || !dirty;
-    setText(controls.save, operation === "save" ? "저장 중…" : "변경 사항 저장");
-    setText(this.#status.testLabel, operation === "test" ? "전송 중…" : "테스트 알림");
-    setText(this.#status.edit, !ready ? "앱 연결 후 설정을 변경할 수 있습니다."
-      : operation === "save" ? "설정을 저장하고 있습니다."
-        : dirty ? "저장하지 않은 변경 사항이 있습니다." : "모든 변경 사항이 저장되었습니다.");
+    setText(controls.save, localizer.t(operation === "save" ? "saving" : "save"));
+    setText(this.#status.testLabel, localizer.t(operation === "test" ? "sending" : "testNotification"));
+    setText(this.#status.edit, localizer.t(!ready ? "settingsUnavailable" : operation === "save" ? "settingsSaving" : dirty ? "settingsDirty" : "settingsSaved"));
     controls.form.setAttribute("aria-busy", String(operation === "save"));
-    setText(this.#status.secret, dashboard ? dashboard.api.has_client_secret ? "저장됨" : "저장된 값 없음" : "저장 여부 확인 전");
-    controls.clientSecret.placeholder = dashboard?.api.has_client_secret ? "변경할 때만 새 Secret 입력" : "새 Secret 입력";
+    setText(this.#status.secret, localizer.t(dashboard ? dashboard.api.has_client_secret ? "secretSaved" : "secretMissing" : "secretUnknown"));
+    controls.clientSecret.placeholder = localizer.t(dashboard?.api.has_client_secret ? "secretReplace" : "secretNew");
     controls.clearSecret.disabled = !dashboard?.api.has_client_secret || Boolean(operation);
     controls.clientSecret.disabled = controls.clearSecret.checked;
     if (operation !== "auto-launch") controls.autoLaunch.checked = Boolean(dashboard?.auto_launch);
     const launchError = state.autoLaunchError || dashboard?.auto_launch_error;
     this.#status.autoLaunchError.hidden = !launchError;
-    if (launchError) setText(this.#status.autoLaunchError, `자동 실행 상태를 확인하거나 변경하지 못했습니다.\n${launchError}`);
+    if (launchError) setText(this.#status.autoLaunchError, localizer.t("autoLaunchError", { error: localizer.error(launchError) }));
     const version = dashboard?.version ? `v${dashboard.version}` : "";
     setText(this.#status.appVersion, version);
     setText(this.#status.version, version);
-    setText(this.#status.session, dashboard ? { wayland: "Wayland 세션", x11: "X11 세션", unknown: "세션 유형 확인 불가" }[dashboard.session_type] || "세션 유형 확인 불가" : "");
+    setText(this.#status.session, dashboard ? localizer.t(dashboard.session_type === "wayland" ? "sessionWayland" : dashboard.session_type === "x11" ? "sessionX11" : "sessionUnknown") : "");
   }
 }

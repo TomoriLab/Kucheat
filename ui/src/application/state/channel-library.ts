@@ -14,8 +14,8 @@ export class ChannelLibrary {
   selectFilter(filter: ChannelFilter): void { this.#filter = filter; }
   clearSearch(): void { this.#query = ""; }
 
-  visible(channels: readonly Channel[]): Channel[] {
-    return filterChannels(channels, this.#query, this.#filter);
+  visible(channels: readonly Channel[], locale = "ko"): Channel[] {
+    return filterChannels(channels, this.#query, this.#filter, locale);
   }
 
   selectDeletion(identifier: string, channels: readonly Channel[]): Channel | null {

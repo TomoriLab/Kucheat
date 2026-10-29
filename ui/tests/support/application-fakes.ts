@@ -1,3 +1,5 @@
+import { resolveText } from "../../src/localization/localizer.ts";
+import type { LocalizedText } from "../../src/localization/localizer.ts";
 import type { DesktopClient } from "../../src/application/ports/desktop-client.ts";
 import type { ApplicationView, ErrorTarget, Feedback, Scheduler, ScreenController } from "../../src/application/ports/presentation.ts";
 import type { Dashboard } from "../../src/domain/types.ts";
@@ -82,9 +84,9 @@ export class RecordingFeedback implements Feedback {
   start(): void { this.starts += 1; }
   dispose(): void { this.disposals += 1; }
   clearError(target: ErrorTarget): void { this.cleared.push(target); }
-  displayError(target: ErrorTarget, context: string, error: unknown): void { this.errors.push({ target, context, error }); }
-  showActionError(context: string, error: unknown): void { this.errors.push({ target: null, context, error }); }
-  showToast(message: string): void { this.messages.push(message); }
+  displayError(target: ErrorTarget, context: LocalizedText, error: unknown): void { this.errors.push({ target, context: resolveText(context), error }); }
+  showActionError(context: LocalizedText, error: unknown): void { this.errors.push({ target: null, context: resolveText(context), error }); }
+  showToast(message: LocalizedText): void { this.messages.push(resolveText(message)); }
 }
 
 export async function flushPromises(): Promise<void> {

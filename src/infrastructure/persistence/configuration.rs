@@ -29,17 +29,15 @@ impl FileConfigurationRepository {
     }
 
     fn load_unlocked(&self) -> Result<Config> {
-        let path = self.directory.join("config.toml");
-        tracing::debug!(path = ?path, "Loading config");
-        if path.exists() {
-            let content = fs::read_to_string(&path).context("Failed to read config file")?;
-            let config: Config = toml::from_str(&content).context("Failed to parse config file")?;
-            config.settings.validate()?;
+        if let Some(config) = self.load_existing()? {
             Ok(config)
         } else {
             let config = Config::default();
             self.save(&config)?;
-            tracing::info!("Created default config at {:?}", path);
+            tracing::info!(
+                "Created default config at {:?}",
+                self.directory.join("config.toml")
+            );
             Ok(config)
         }
     }
@@ -56,6 +54,18 @@ impl ConfigurationRepository for FileConfigurationRepository {
     fn load(&self) -> Result<Config> {
         let _lock = self.write_lock()?;
         self.load_unlocked()
+    }
+
+    fn load_existing(&self) -> Result<Option<Config>> {
+        // Atomic replacement allows read-only locale discovery without creating files or locks.
+        let content = match fs::read_to_string(self.directory.join("config.toml")) {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error).context("Failed to read config file"),
+        };
+        let config: Config = toml::from_str(&content).context("Failed to parse config file")?;
+        config.settings.validate()?;
+        Ok(Some(config))
     }
 
     fn update(&self, mutation: &mut ConfigurationMutation<'_>) -> Result<()> {

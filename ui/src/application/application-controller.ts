@@ -1,3 +1,4 @@
+import type { LocalizedText, Localizer } from "../localization/localizer.ts";
 import type { Dashboard } from "../domain/types.ts";
 import type { DesktopClient } from "./ports/desktop-client.ts";
 import type { ApplicationView, ErrorTarget, Feedback, Scheduler, ScreenController } from "./ports/presentation.ts";
@@ -7,8 +8,8 @@ import type { Operation } from "./state/dashboard-state.ts";
 export interface OperationOptions {
   dashboard?: boolean;
   errorTarget?: ErrorTarget;
-  context?: string;
-  success?: string;
+  context?: LocalizedText;
+  success?: LocalizedText;
   onSuccess?: () => void;
 }
 
@@ -16,6 +17,7 @@ export interface ApplicationActions {
   readonly ready: boolean;
   poll(): Promise<void>;
   renderControls(): void;
+  relocalize(): void;
   run(operation: Operation, action: () => Promise<Dashboard | void>, options?: OperationOptions): Promise<boolean>;
 }
 
@@ -26,6 +28,7 @@ export class ApplicationController implements ApplicationActions {
   readonly #feedback: Feedback;
   readonly #scheduler: Scheduler;
   readonly #screens: readonly ScreenController[];
+  readonly #localizer: Localizer;
   #cancelPoll: (() => void) | undefined;
   #running = false;
   #generation = 0;
@@ -34,7 +37,9 @@ export class ApplicationController implements ApplicationActions {
   constructor(
     client: DesktopClient, state: DashboardState, view: ApplicationView,
     feedback: Feedback, scheduler: Scheduler, createScreens: (actions: ApplicationActions) => readonly ScreenController[],
+    localizer: Localizer,
   ) {
+    this.#localizer = localizer;
     this.#client = client;
     this.#state = state;
     this.#view = view;
@@ -121,7 +126,7 @@ export class ApplicationController implements ApplicationActions {
       return true;
     } catch (error) {
       if (!this.isCurrent(generation)) return false;
-      const context = options.context || "요청을 처리하지 못했습니다";
+      const context = options.context || this.#localizer.message("requestFailure");
       if (options.errorTarget) this.#feedback.displayError(options.errorTarget, context, error);
       else if (operation === "auto-launch") this.#state.setAutoLaunchError(error);
       else this.#feedback.showActionError(context, error);
@@ -137,9 +142,14 @@ export class ApplicationController implements ApplicationActions {
     }
   }
 
+  relocalize(): void { if (this.#running) this.render(); }
+
   private render(resetSettings = false): void {
+    if (this.#state.dashboard) this.#localizer.setPreference(this.#state.dashboard.settings.language);
+    else this.#localizer.setPreference("system");
     this.#view.render();
     for (const screen of this.#screens) screen.render?.(resetSettings);
+    this.#feedback.render?.();
     this.renderControls();
   }
 

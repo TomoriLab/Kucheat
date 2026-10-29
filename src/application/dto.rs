@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::config::{ChannelConfig, Settings};
+use crate::domain::localization::LanguagePreference;
 use crate::domain::monitoring::MonitorStatus;
 use crate::domain::state::ChannelState;
 
@@ -59,6 +60,8 @@ pub struct SettingsInput {
     pub client_secret: Option<String>,
     #[serde(default)]
     pub clear_client_secret: bool,
+    #[serde(default)]
+    pub language: Option<LanguagePreference>,
 }
 
 #[cfg(test)]

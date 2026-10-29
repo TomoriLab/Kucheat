@@ -13,6 +13,7 @@ export interface Channel {
 export interface Settings {
   check_interval_secs: number;
   notify_offline: boolean;
+  language?: LanguagePreference;
 }
 
 export interface ApiCredentials {
@@ -71,9 +72,13 @@ export interface SettingsFormValues {
   clientId: string;
   clientSecret: string | null;
   clearClientSecret: boolean;
+  language?: LanguagePreference;
 }
 
 export type ChannelState = "live" | "offline" | "unknown";
 export type ChannelFilter = "all" | ChannelState;
 export type ChannelCounts = Record<ChannelFilter, number>;
 export type Theme = "system" | "light" | "dark";
+
+export type Locale = "ko" | "en" | "ja" | "zh-TW";
+export type LanguagePreference = "system" | Locale;

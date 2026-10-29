@@ -1,3 +1,5 @@
+import type { Localizer } from "../../localization/localizer.ts";
+import type { SettingsFormValues } from "../../domain/types.ts";
 import type { ApplicationActions } from "../../application/application-controller.ts";
 import type { DesktopClient } from "../../application/ports/desktop-client.ts";
 import type { Feedback, ScreenController } from "../../application/ports/presentation.ts";
@@ -15,11 +17,15 @@ export class SettingsController implements ScreenController {
   readonly #application: ApplicationActions;
   readonly #feedback: Feedback;
   readonly #events = new EventBindings();
+  readonly #localizer: Localizer;
+  #submitted: SettingsFormValues | undefined;
 
   constructor(
     view: SettingsView, draft: SettingsDraft, state: DashboardState,
     client: DesktopClient, application: ApplicationActions, feedback: Feedback,
+    localizer: Localizer,
   ) {
+    this.#localizer = localizer;
     this.#view = view;
     this.#draft = draft;
     this.#state = state;
@@ -43,12 +49,12 @@ export class SettingsController implements ScreenController {
       const enabled = controls.autoLaunch.checked;
       this.#state.setAutoLaunchError(null);
       void this.#application.run("auto-launch", () => this.#client.setAutoLaunch(enabled), {
-        dashboard: true, success: enabled ? "자동 실행을 켰습니다." : "자동 실행을 껐습니다.",
+        dashboard: true, success: this.#localizer.message(enabled ? "autoLaunchOn" : "autoLaunchOff"),
       });
     });
     this.#events.listen(controls.test, "click", () => {
       void this.#application.run("test", () => this.#client.sendTestNotification(), {
-        context: "테스트 알림을 보내지 못했습니다", success: "테스트 알림을 요청했습니다. 데스크톱 알림을 확인해 주세요.",
+        context: this.#localizer.message("testFailure"), success: this.#localizer.message("testSuccess"),
       });
     });
   }
@@ -57,7 +63,11 @@ export class SettingsController implements ScreenController {
 
   render(force = false): void {
     const dashboard = this.#state.dashboard;
-    if (dashboard && this.#draft.hydrate(dashboard, this.#view.editing, force)) this.#view.writeValues(this.#draft.values);
+    if (!dashboard) return;
+    if (force && this.#submitted) {
+      this.#draft.acceptSaved(dashboard, this.#submitted, this.#view.readValues());
+      this.#view.writeValues(this.#draft.values);
+    } else if (this.#draft.hydrate(dashboard, this.#view.editing, force)) this.#view.writeValues(this.#draft.values);
   }
 
   renderControls(): void { this.#view.renderControls(this.#state, this.#application.ready, this.#draft.dirty); }
@@ -78,12 +88,17 @@ export class SettingsController implements ScreenController {
     try {
       createSettingsPayload(values);
     } catch (error) {
-      this.#feedback.displayError("settings-error", "설정값을 확인해 주세요.", error);
+      this.#feedback.displayError("settings-error", this.#localizer.message("settingsValidation"), error);
       this.#view.markInvalid();
       return;
     }
-    await this.#application.run("save", () => this.#client.saveSettings(values), {
-      dashboard: true, context: "설정을 저장하지 못했습니다", errorTarget: "settings-error", success: "설정을 저장했습니다.",
-    });
+    this.#submitted = values;
+    try {
+      await this.#application.run("save", () => this.#client.saveSettings(values), {
+        dashboard: true, context: this.#localizer.message("saveFailure"), errorTarget: "settings-error", success: this.#localizer.message("saveSuccess"),
+      });
+    } finally {
+      if (this.#submitted === values) this.#submitted = undefined;
+    }
   }
 }

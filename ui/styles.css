@@ -98,14 +98,14 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--canvas); color: var(--text); min-width: 320px; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
-button, input, a { -webkit-tap-highlight-color: transparent; }
-button:disabled, input:disabled { cursor: not-allowed; }
+button, input, select, a { -webkit-tap-highlight-color: transparent; }
+button:disabled, input:disabled, select:disabled { cursor: not-allowed; }
 button { color: inherit; }
-input { color: var(--text); min-width: 0; }
+input, select { color: var(--text); min-width: 0; }
 input::placeholder { color: var(--muted); opacity: 1; }
-button, input, a, [tabindex] { outline-offset: 3px; }
+button, input, select, a, [tabindex] { outline-offset: 3px; }
 :focus-visible { outline: 2px solid var(--focus); }
 [hidden] { display: none !important; }
 h1, h2, h3, p { margin: 0; }
@@ -240,10 +240,11 @@ main { min-width: 0; }
 .setting-row > .button { flex: 0 0 auto; }
 .number-field { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; font-size: 12px; color: var(--secondary); }
 .number-field input { width: 100px; }
-input[type="text"], input[type="password"], input[type="number"] { background: var(--surface); border: 1px solid var(--control-border); border-bottom-color: var(--secondary); border-radius: 4px; padding: 6px 10px; min-height: 34px; font-size: 13px; }
-input[type="text"]:hover:not(:disabled), input[type="password"]:hover:not(:disabled), input[type="number"]:hover:not(:disabled) { border-color: var(--secondary); }
-input:disabled, fieldset:disabled input { color: var(--disabled-text); background: var(--disabled-background); border-color: var(--border); }
-input[aria-invalid="true"] { border-color: var(--danger); }
+input[type="text"], input[type="password"], input[type="number"], select { background: var(--surface); border: 1px solid var(--control-border); border-bottom-color: var(--secondary); border-radius: 4px; padding: 6px 10px; min-height: 34px; font-size: 13px; }
+input[type="text"]:hover:not(:disabled), input[type="password"]:hover:not(:disabled), input[type="number"]:hover:not(:disabled), select:hover:not(:disabled) { border-color: var(--secondary); }
+input:disabled, fieldset:disabled input, select:disabled, fieldset:disabled select { color: var(--disabled-text); background: var(--disabled-background); border-color: var(--border); }
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--danger); }
+select { max-width: 100%; }
 .switch { appearance: none; position: relative; width: 40px; height: 20px; min-width: 40px; border: 1px solid var(--secondary); border-radius: 20px; background: transparent; margin: 4px 0; cursor: pointer; transition: background-color 120ms cubic-bezier(.2, 0, 0, 1), border-color 120ms cubic-bezier(.2, 0, 0, 1); }
 .switch::after { content: ""; position: absolute; width: 12px; height: 12px; left: 3px; top: 3px; background: var(--secondary); border-radius: 50%; transition: transform 120ms cubic-bezier(.16, 1, .3, 1); }
 .switch:checked { background: var(--brand); border-color: var(--brand); }
@@ -257,7 +258,7 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 .api-fields { display: grid; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field > label { font-size: 13px; font-weight: 500; }
-.field input { width: 100%; }
+.field input, .field select { width: 100%; }
 .field-help { color: var(--secondary); font-size: 11px; font-weight: 400; }
 .optional-label, .required-text { display: inline-block; color: var(--secondary); font-weight: 400; font-size: 11px; margin-left: 6px; }
 .credential-status { color: var(--muted); font-size: 11px; font-weight: 400; margin-left: 8px; }

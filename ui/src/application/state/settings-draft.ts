@@ -1,8 +1,9 @@
+import { normalizeLanguage } from "../../domain/language.ts";
 import type { Dashboard, SettingsFormValues } from "../../domain/types.ts";
 
 export class SettingsDraft {
   #values: SettingsFormValues = {
-    interval: "", notifyOffline: false, clientId: "", clientSecret: "", clearClientSecret: false,
+    interval: "", notifyOffline: false, clientId: "", clientSecret: "", clearClientSecret: false, language: "system",
   };
   #dirty = false;
   #hydrated = false;
@@ -19,6 +20,7 @@ export class SettingsDraft {
       clientId: dashboard.api.client_id || "",
       clientSecret: "",
       clearClientSecret: false,
+      language: normalizeLanguage(dashboard.settings.language),
     };
     this.#dirty = false;
     this.#hydrated = true;
@@ -30,6 +32,21 @@ export class SettingsDraft {
     this.#dirty = String(this.#values.interval) !== String(dashboard.settings.check_interval_secs)
       || this.#values.notifyOffline !== dashboard.settings.notify_offline
       || this.#values.clientId !== (dashboard.api.client_id || "")
-      || Boolean(this.#values.clientSecret) || this.#values.clearClientSecret;
+      || Boolean(this.#values.clientSecret) || this.#values.clearClientSecret
+      || normalizeLanguage(this.#values.language) !== normalizeLanguage(dashboard.settings.language);
+  }
+
+  acceptSaved(dashboard: Dashboard, submitted: SettingsFormValues, current: SettingsFormValues = this.#values): void {
+    this.hydrate(dashboard, false, true);
+    const saved = this.values;
+    // A language update must not erase edits made after the save request began.
+    this.update({
+      interval: String(current.interval) === String(submitted.interval) ? saved.interval : current.interval,
+      notifyOffline: current.notifyOffline === submitted.notifyOffline ? saved.notifyOffline : current.notifyOffline,
+      clientId: current.clientId === submitted.clientId ? saved.clientId : current.clientId,
+      clientSecret: current.clientSecret === submitted.clientSecret ? saved.clientSecret : current.clientSecret,
+      clearClientSecret: current.clearClientSecret === submitted.clearClientSecret ? saved.clearClientSecret : current.clearClientSecret,
+      language: normalizeLanguage(current.language) === normalizeLanguage(submitted.language) ? saved.language : current.language,
+    }, dashboard);
   }
 }

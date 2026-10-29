@@ -40,6 +40,7 @@ impl SettingsService {
         let settings = Settings {
             check_interval_secs: input.check_interval_secs,
             notify_offline: input.notify_offline,
+            language: input.language.unwrap_or(config.settings.language),
         };
         settings.validate()?;
         ensure!(input.client_id.len() <= 256, "Client ID exceeds 256 bytes");
@@ -84,6 +85,7 @@ mod tests {
             client_id: "client".to_owned(),
             client_secret: secret.map(str::to_owned),
             clear_client_secret: clear,
+            language: None,
         }
     }
 

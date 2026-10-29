@@ -1,3 +1,4 @@
+import { Localizer } from "../src/localization/localizer.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ApplicationController } from "../src/application/application-controller.ts";
@@ -13,7 +14,7 @@ function application() {
   const feedback = new RecordingFeedback();
   const scheduler = new ManualScheduler();
   const screen = new RecordingScreen();
-  const controller = new ApplicationController(client, state, view, feedback, scheduler, () => [screen]);
+  const controller = new ApplicationController(client, state, view, feedback, scheduler, () => [screen], new Localizer("en"));
   return { client, state, view, feedback, scheduler, screen, controller };
 }
 

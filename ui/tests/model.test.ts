@@ -1,14 +1,18 @@
+import { Localizer } from "../src/localization/localizer.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
   channelCounts, channelState, createChannelPayload, createSettingsPayload,
-  errorText, filterChannels, formatTimestamp, formatViewerCount, normalizeTheme,
+  errorText, filterChannels, normalizeTheme,
   parseChannelInput,
 } from "../src/domain/rules.ts";
 import { BridgeUnavailableError, TauriDesktopClient } from "../src/infrastructure/tauri/desktop-client.ts";
 import type { Channel, Dashboard, SettingsFormValues } from "../src/domain/types.ts";
 import type { NativeCommand, NativeResults } from "../src/infrastructure/tauri/contracts.ts";
 
+const korean = new Localizer("ko");
+const formatTimestamp = (value: string | null) => korean.timestamp(value, "UTC");
+const formatViewerCount = (value: number | null) => korean.viewers(value);
 const firstIdentifier = "a".repeat(32);
 const secondIdentifier = "b".repeat(32);
 const thirdIdentifier = "c".repeat(32);
@@ -69,8 +73,8 @@ test("channel parsing rejects external, deceptive, credentialed, and malformed a
 test("add payload uses exact camelCase argument names and nullable display name", () => {
   assert.deepEqual(createChannelPayload(firstIdentifier, "  "), { channelId: firstIdentifier, name: null });
   assert.deepEqual(createChannelPayload(firstIdentifier, " 채널 이름 "), { channelId: firstIdentifier, name: "채널 이름" });
-  assert.throws(() => createChannelPayload(firstIdentifier, "가".repeat(81)), /80/);
-  assert.throws(() => createChannelPayload(firstIdentifier.toUpperCase(), "", channels), /이미 등록/);
+  assert.throws(() => createChannelPayload(firstIdentifier, "가".repeat(81)), /longChannelName/);
+  assert.throws(() => createChannelPayload(firstIdentifier.toUpperCase(), "", channels), /duplicateChannel/);
 });
 
 test("settings payload retains blank or null secret and contains no channels", () => {
@@ -87,13 +91,13 @@ test("settings payload retains blank or null secret and contains no channels", (
 test("settings support replacement and explicit clearing without ambiguous credentials", () => {
   assert.equal(createSettingsPayload({ ...settingsValues, clientSecret: " new-secret " }).settings.client_secret, "new-secret");
   assert.equal(createSettingsPayload({ ...settingsValues, clearClientSecret: true }).settings.clear_client_secret, true);
-  assert.throws(() => createSettingsPayload({ ...settingsValues, clientSecret: "secret", clearClientSecret: true }), /하나만/);
+  assert.throws(() => createSettingsPayload({ ...settingsValues, clientSecret: "secret", clearClientSecret: true }), /conflictingSecret/);
 });
 
 test("poll interval has inclusive integer bounds", () => {
   for (const interval of ["15", "86400"]) assert.equal(createSettingsPayload({ ...settingsValues, interval }).settings.check_interval_secs, Number(interval));
   for (const interval of ["", "14", "86401", "15.1", "15.0", "1e3", "0x10", "Infinity", "NaN", "-60", "9007199254740993"]) {
-    assert.throws(() => createSettingsPayload({ ...settingsValues, interval }), /15~86,400/, interval);
+    assert.throws(() => createSettingsPayload({ ...settingsValues, interval }), /invalidInterval/, interval);
   }
 });
 
@@ -186,8 +190,8 @@ test("invalid inputs never reach IPC", () => {
     calls += 1;
     throw new Error("Invalid input reached the native bridge.");
   });
-  assert.throws(() => client.addChannel("invalid", null), /32자리/);
-  assert.throws(() => client.saveSettings({ ...settingsValues, interval: 1 }), /15~86,400/);
+  assert.throws(() => client.addChannel("invalid", null), /invalidChannelInput/);
+  assert.throws(() => client.saveSettings({ ...settingsValues, interval: 1 }), /invalidInterval/);
   assert.equal(calls, 0);
 });
 
@@ -195,5 +199,5 @@ test("missing native bridge fails honestly rather than generating fixture data",
   const client = new TauriDesktopClient(undefined);
   assert.equal(client.available, false);
   await assert.rejects(client.getDashboard(), BridgeUnavailableError);
-  await assert.rejects(client.sendTestNotification(), /데스크톱 앱/);
+  await assert.rejects(client.sendTestNotification(), /bridgeUnavailable/);
 });

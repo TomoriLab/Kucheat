@@ -1,11 +1,12 @@
+import { CodedError } from "../../domain/errors.ts";
 import type { DesktopClient } from "../../application/ports/desktop-client.ts";
 import { createChannelPayload, createSettingsPayload } from "../../domain/rules.ts";
 import type { Channel, Dashboard, SettingsFormValues } from "../../domain/types.ts";
 import type { NativeArguments, NativeCommand, NativeInvoke, NativeResults } from "./contracts.ts";
 
-export class BridgeUnavailableError extends Error {
+export class BridgeUnavailableError extends CodedError {
   constructor() {
-    super("앱 연결을 사용할 수 없습니다. Kucheat 데스크톱 앱에서 열어 주세요.");
+    super("bridgeUnavailable");
     this.name = "BridgeUnavailableError";
   }
 }

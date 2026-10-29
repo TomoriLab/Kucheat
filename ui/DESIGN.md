@@ -2,7 +2,7 @@
 
 ## Mission
 
-Provide a compact Korean-language desktop interface for monitoring CHZZK channels and configuring native notifications. This is an operational application, not a dashboard or marketing page.
+Provide a compact desktop interface in Korean, English, Japanese, and Traditional Chinese (Taiwan) for monitoring CHZZK channels and configuring native notifications. This is an operational application, not a dashboard or marketing page.
 
 ## Design system
 
@@ -32,7 +32,7 @@ The interface follows the supplied Fluent 2 direction: neutral layered surfaces,
 - CHZZK channel identifiers are 32 hexadecimal characters. Accepted URLs use `chzzk.naver.com/<id>` or `chzzk.naver.com/live/<id>` with optional query strings or fragments.
 - The native host owns monitoring and credential persistence. A dashboard mutation returns the authoritative dashboard.
 - Closing the decorated native window exits the GUI. Monitoring can continue only while the GUI or the existing daemon is running.
-- Theme is a local presentation preference. It is the only value persisted by this frontend.
+- Theme is a local presentation preference and the only value stored in localStorage. Language is a shared native setting persisted through `save_settings`.
 
 ## Architecture and public responsibilities
 
@@ -42,6 +42,10 @@ ui/
   styles.css
   src/
     domain/                    # Data contracts and pure rules.
+    localization/
+      catalogs/                # Complete Korean, English, Japanese, and Taiwan Chinese messages.
+      localizer.ts             # Injected locale selection, typed interpolation, and Intl formatting.
+      locale.ts                # Pure system-language resolution.
     application/
       ports/                   # Desktop, presentation, and scheduler interfaces.
       state/                   # Dashboard, channel library, and settings draft objects.
@@ -61,9 +65,9 @@ ui/
 
 | Object or module | Public responsibility |
 | --- | --- |
-| `domain/types.ts`, `domain/rules.ts` | Preserve data and payload shapes. Validate channel/settings input, filter and count channels, normalize themes, and format display values without DOM or transport access. |
+| `domain/types.ts`, `domain/rules.ts` | Preserve data and payload shapes. Validate channel/settings input, filter and count channels using an explicit locale, and normalize themes without DOM or transport access. Display formatting belongs to the injected `Localizer`. |
 | `DesktopClient`, `TauriDesktopClient` | Define native operations independently of Tauri. The adapter receives a typed invoke function and serializes requests through a private per-instance queue that recovers after rejection. Only the composition entry point reads `window.__TAURI__`. |
-| `DashboardState`, `ChannelLibrary`, `SettingsDraft` | Encapsulate authoritative dashboard/connection/busy state, search/filter/deletion selection, and editable settings respectively. Mutations use explicit methods. Draft values are copied on input and output. Polls preserve dirty or focused drafts; successful save and explicit reset hydrate authoritative values and clear replacement secrets. |
+| `DashboardState`, `ChannelLibrary`, `SettingsDraft` | Encapsulate authoritative dashboard/connection/busy state, search/filter/deletion selection, and editable settings respectively. Mutations use explicit methods. Draft values are copied on input and output. Polls preserve dirty or focused drafts. Save acknowledgment clears submitted replacement secrets but retains edits made after submission. Explicit reset restores authoritative settings, including language. |
 | `ApplicationController` | Start and dispose child controllers, coordinate rendering, gate operations, restore action focus, and schedule three-second polls through an injected scheduler. Lifetime generations ignore late completions after disposal/restart. Dashboard revisions prevent an older poll from overwriting a mutation or reporting a stale connection error. |
 | `ChannelsController`, `SettingsController` | Bind user events, validate input, and coordinate their injected state, views, desktop client, and application action interface. Channel row actions use delegated events so keyed rows retain focus without persistent per-row listeners. |
 | `ShellController`, `FeedbackController` | Handle navigation/theme events and toast/error events respectively. Feedback owns its cancellable six-second toast lifetime. Theme remains the only localStorage value. |
@@ -72,6 +76,15 @@ ui/
 | `bootstrap/main.ts`, `bootstrap/theme.ts` | Compose instances and connect page lifetime events. The standalone theme script runs before CSS without importing modules, preserving pre-paint theme selection. |
 
 Dependency flow is composition → controllers → application ports/state and domain rules. Infrastructure implements the ports; views render domain/state values. The application controller receives a child-controller factory so each child receives the same action interface without global state or late dependency assignment. Browser-only startup has no fabricated dashboard and keeps native controls disabled. Native IPC command names, payload casing, results, and write-only/null secret semantics remain unchanged.
+
+## Localization contract
+
+- `Localizer` is constructed at the composition root and injected into the application controller, views, and action controllers. It owns no storage and has no global singleton. Its `t()` method requires catalog-defined keys and named interpolation parameters; `message()` returns deferred text for toasts and error contexts that must follow later language changes. `timestamp()`, `number()`, and `viewers()` use the resolved locale with `Intl`. Tests supply UTC for deterministic dates; the application uses the local timezone.
+- `localization/catalogs/{ko,en,ja,zh-TW}.ts` contain complete messages. The English catalog defines the key and placeholder types. The other catalogs must satisfy the same key set, and tests verify identical placeholder sets and nonempty translations. Messages contain complete sentences or labels, not grammatical fragments assembled in code.
+- The saved preference is `system`, `ko`, `en`, `ja`, or `zh-TW`. Older dashboards without `settings.language` use `system`. The system resolver checks `navigator.languages` in order, then `navigator.language`, normalizes underscores and region/encoding suffixes, and uses the first supported primary language. All Chinese variants resolve to `zh-TW`; unsupported preferences fall back to English. Explicit language settings override navigator preferences.
+- `#language` is part of the settings draft. Saving uses the existing `save_settings.settings.language` field and immediately applies the returned authoritative preference. Omitting language from a programmatic settings payload preserves the native preference. Poll-driven locale changes and `languagechange` events rerender presentation without replacing dirty or focused settings. Failed saves leave the previous language active. Reset restores the saved selection.
+- `LocalizedDocument` applies `data-i18n` text and localized attribute annotations, sets `document.documentElement.lang`, and updates only existing text nodes for controls containing icons or counters. The shell owns localized page titles. View renderers localize dynamic status, dialogs, placeholders, actions, and accessible labels. English HTML fallback does not replace the bundled logo or favicon.
+- Domain validation and transport failures use `CodedError` values translated at presentation time. Native OS/API diagnostic strings and channel names, titles, categories, profile URLs, and avatar behavior remain unchanged. Interpolation and DOM rendering use literal text, never untrusted HTML. Theme behavior and pre-paint initialization are unchanged.
 
 ## Verification
 
@@ -83,4 +96,4 @@ npm test
 npm run build
 ```
 
-The build emits browser modules into `target/frontend/` and copies the static HTML/CSS assets there. Source imports use explicit `.ts` extensions; TypeScript rewrites them to `.js`. The HTML references generated `src/bootstrap/main.js` and `src/bootstrap/theme.js`. Preview `target/frontend/index.html` after building, not the uncompiled source page. Tests cover the original validation and IPC contracts plus state isolation, settings draft preservation, FIFO client concurrency/recovery, polling, disposal/restart, and stale responses. Test fixtures remain under `ui/tests/`, which the asset copier excludes. Browser fixtures belong in the session scratch directory and are not shipped in `ui/`.
+The build emits browser modules into `target/frontend/` and copies the static HTML/CSS assets there. Source imports use explicit `.ts` extensions; TypeScript rewrites them to `.js`. The HTML references generated `src/bootstrap/main.js` and `src/bootstrap/theme.js`. Preview `target/frontend/index.html` after building, not the uncompiled source page. Tests cover validation and IPC contracts, state isolation, draft preservation, FIFO client concurrency/recovery, polling/disposal, stale responses, profile image behavior, locale resolution, catalog keys/placeholders, interpolation, locale formatting, and language persistence. Test fixtures remain under `ui/tests/`, which the asset copier excludes. Browser fixtures belong in the session scratch directory and are not shipped in `ui/`.

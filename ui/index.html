@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="ko" data-theme="system">
+<html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Kucheat CHZZK 채널 및 데스크톱 알림 관리">
+  <meta name="description" data-i18n-content="description" content="Manage CHZZK channels and desktop notifications with Kucheat">
   <title>Kucheat</title>
   <link rel="icon" type="image/png" sizes="512x512" href="./assets/icons/kucheat.png">
   <script src="./src/bootstrap/theme.js"></script>
@@ -27,83 +27,84 @@
     <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
     <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
   </svg>
-  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <a class="skip-link" href="#main" data-i18n="skipContent">Skip to content</a>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="앱 탐색">
+    <aside class="sidebar" aria-label="App navigation" data-i18n-aria-label="appNavigation">
       <div class="brand"><img class="brand-mark" src="./assets/icons/kucheat.png" alt="Kucheat" width="32" height="32" decoding="async"><span aria-hidden="true">Kucheat</span></div>
-      <nav aria-label="주 메뉴">
-        <button class="navigation-item" type="button" data-page="channels" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#icon-channels"/></svg><span>채널</span><span class="navigation-count" id="navigation-count">—</span></button>
-        <button class="navigation-item" type="button" data-page="settings"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg><span>설정</span></button>
+      <nav aria-label="Main menu" data-i18n-aria-label="mainNavigation">
+        <button class="navigation-item" type="button" data-page="channels" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#icon-channels"/></svg><span data-i18n="channels">Channels</span><span class="navigation-count" id="navigation-count">—</span></button>
+        <button class="navigation-item" type="button" data-page="settings"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg><span data-i18n="settings">Settings</span></button>
       </nav>
-      <div class="sidebar-footer"><div class="sidebar-status"><span class="status-dot" id="sidebar-status-dot"></span><span id="sidebar-status-text">연결 확인 중</span></div><span class="caption">CHZZK 알림 도우미</span><span class="caption version" id="app-version"></span></div>
+      <div class="sidebar-footer"><div class="sidebar-status"><span class="status-dot" id="sidebar-status-dot"></span><span id="sidebar-status-text">Connecting to the app</span></div><span class="caption" data-i18n="tagline">CHZZK notification companion</span><span class="caption version" id="app-version"></span></div>
     </aside>
     <main id="main" tabindex="-1">
       <div class="content">
         <section class="message-banner" id="connection-banner" role="alert" hidden>
           <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
           <div class="message-copy"><strong id="connection-title"></strong><p id="connection-detail"></p></div>
-          <button class="button secondary small" id="retry-connection" type="button" hidden>다시 연결</button>
+          <button class="button secondary small" id="retry-connection" type="button" hidden>Reconnect</button>
         </section>
         <section id="channels-page" aria-labelledby="channels-heading">
-          <header class="page-header"><div><div class="eyebrow">내 라이브러리</div><h1 id="channels-heading" tabindex="-1">채널</h1><p class="page-description">좋아하는 채널의 방송 시작을 놓치지 마세요.</p></div><button class="button primary" id="add-channel" data-native type="button" disabled><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>채널 추가</button></header>
-          <div class="monitor-strip" aria-label="모니터링 상태">
+          <header class="page-header"><div><div class="eyebrow" data-i18n="library">My library</div><h1 id="channels-heading" tabindex="-1" data-i18n="channels">Channels</h1><p class="page-description" data-i18n="channelsDescription">Never miss your favorite channels going live.</p></div><button class="button primary" id="add-channel" data-native type="button" disabled data-i18n-leading="addChannel"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Add channel</button></header>
+          <div class="monitor-strip" aria-label="Monitoring status" data-i18n-aria-label="monitorLabel">
             <span class="monitor-symbol"><svg class="icon" aria-hidden="true"><use href="#icon-broadcast"/></svg></span>
-            <div class="monitor-copy"><div class="monitor-title"><span class="status-dot" id="monitor-status-dot"></span><strong id="monitor-status-text">앱에 연결하는 중</strong></div><p id="monitor-detail">모니터링 상태를 확인하고 있습니다.</p></div>
-            <button class="button secondary small" id="refresh-channels" data-native type="button" disabled><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg><span id="refresh-label">지금 확인</span></button>
+            <div class="monitor-copy"><div class="monitor-title"><span class="status-dot" id="monitor-status-dot"></span><strong id="monitor-status-text">Connecting to the app</strong></div><p id="monitor-detail">Checking monitoring status.</p></div>
+            <button class="button secondary small" id="refresh-channels" data-native type="button" disabled><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg><span id="refresh-label">Check now</span></button>
           </div>
-          <div class="message-banner warning" id="monitor-error" role="status" hidden><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg><div class="message-copy"><strong>방송 상태를 확인하지 못했습니다</strong><p id="monitor-error-detail"></p></div></div>
+          <div class="message-banner warning" id="monitor-error" role="status" hidden><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg><div class="message-copy"><strong data-i18n="monitorFailure">Could not check stream status</strong><p id="monitor-error-detail"></p></div></div>
           <div class="channel-toolbar">
-            <div class="filter-group" role="group" aria-label="방송 상태 필터">
-              <button class="filter-button" type="button" data-filter="all" aria-pressed="true">전체 <span id="count-all">0</span></button>
-              <button class="filter-button" type="button" data-filter="live" aria-pressed="false">라이브 <span id="count-live">0</span></button>
-              <button class="filter-button" type="button" data-filter="offline" aria-pressed="false">오프라인 <span id="count-offline">0</span></button>
+            <div class="filter-group" role="group" aria-label="Filter by stream status" data-i18n-aria-label="filterLabel">
+              <button class="filter-button" type="button" data-filter="all" aria-pressed="true" data-i18n-leading="all">All <span id="count-all">0</span></button>
+              <button class="filter-button" type="button" data-filter="live" aria-pressed="false" data-i18n-leading="live">Live <span id="count-live">0</span></button>
+              <button class="filter-button" type="button" data-filter="offline" aria-pressed="false" data-i18n-leading="offline">Offline <span id="count-offline">0</span></button>
             </div>
-            <div class="search-box"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><label class="visually-hidden" for="channel-search">채널, 방송 제목 또는 카테고리 검색</label><input id="channel-search" type="search" placeholder="채널 검색" autocomplete="off" maxlength="200"><button class="icon-button" id="clear-search" type="button" aria-label="검색 지우기" hidden><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
+            <div class="search-box"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><label class="visually-hidden" for="channel-search" data-i18n="searchLabel">Search channels, stream titles, or categories</label><input id="channel-search" type="search" placeholder="Search channels" data-i18n-placeholder="searchPlaceholder" autocomplete="off" maxlength="200"><button class="icon-button" id="clear-search" type="button" aria-label="Clear search" data-i18n-aria-label="clearSearch" hidden><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
           </div>
           <p class="visually-hidden" id="filter-announcement" role="status"></p>
-          <div id="channel-list" class="channel-list" role="list" aria-label="등록된 채널" aria-busy="true"></div>
+          <div id="channel-list" class="channel-list" role="list" aria-label="Registered channels" data-i18n-aria-label="registeredChannels" aria-busy="true"></div>
           <div class="empty-state" id="channel-empty" hidden><span class="empty-symbol"><svg class="icon" aria-hidden="true"><use href="#icon-channels"/></svg></span><h2 id="empty-title"></h2><p id="empty-description"></p><button class="button secondary" id="empty-action" type="button" hidden></button></div>
-          <p class="list-footnote" id="channel-footnote" hidden><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>방송 상태는 설정한 간격으로 확인합니다. 알림은 데스크톱에서 전달됩니다.</p>
+          <p class="list-footnote" id="channel-footnote" hidden data-i18n-leading="channelFootnote"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>Stream status is checked at your configured interval. Notifications appear on your desktop.</p>
         </section>
         <section id="settings-page" aria-labelledby="settings-heading" hidden>
-          <header class="page-header"><div><div class="eyebrow">앱 환경</div><h1 id="settings-heading" tabindex="-1">설정</h1><p class="page-description">알림과 모니터링을 원하는 방식으로 설정하세요.</p></div></header>
+          <header class="page-header"><div><div class="eyebrow" data-i18n="environment">App preferences</div><h1 id="settings-heading" tabindex="-1" data-i18n="settings">Settings</h1><p class="page-description" data-i18n="settingsDescription">Customize notifications and monitoring.</p></div></header>
           <form id="settings-form" novalidate autocomplete="off">
-            <section class="settings-section" aria-labelledby="notification-heading"><h2 id="notification-heading">모니터링 및 알림</h2><div class="settings-card">
-              <fieldset class="native-fields" data-native-edit disabled><legend class="visually-hidden">모니터링 설정</legend>
-                <div class="setting-row"><div class="setting-copy"><label for="check-interval" class="setting-label">방송 확인 간격</label><p id="interval-help">15~86,400초 사이로 설정할 수 있습니다.</p></div><div class="number-field"><input id="check-interval" type="number" min="15" max="86400" step="1" inputmode="numeric" aria-describedby="interval-help" required><span>초</span></div></div>
-                <div class="setting-row"><div class="setting-copy"><label for="notify-offline" class="setting-label">방송 종료 알림</label><p>방송이 종료되었을 때도 알림을 받습니다.</p></div><input class="switch" id="notify-offline" type="checkbox" role="switch"></div>
+            <section class="settings-section" aria-labelledby="language-heading"><h2 id="language-heading" data-i18n="languageHeading">Language</h2><div class="settings-card"><div class="setting-row"><div class="setting-copy"><label for="language" class="setting-label" data-i18n="languageLabel">App language</label><p id="language-help" data-i18n="languageHelp">Save changes to apply the language to the app and notifications.</p></div><select id="language" data-native-edit disabled aria-describedby="language-help"><option value="system" data-i18n="system">System</option><option value="ko" lang="ko">한국어</option><option value="en" lang="en">English</option><option value="ja" lang="ja">日本語</option><option value="zh-TW" lang="zh-TW">繁體中文（台灣）</option></select></div></div></section>
+            <section class="settings-section" aria-labelledby="notification-heading"><h2 id="notification-heading" data-i18n="notificationsHeading">Monitoring and notifications</h2><div class="settings-card">
+              <fieldset class="native-fields" data-native-edit disabled><legend class="visually-hidden" data-i18n="monitorSettings">Monitoring settings</legend>
+                <div class="setting-row"><div class="setting-copy"><label for="check-interval" class="setting-label" data-i18n="intervalLabel">Stream check interval</label><p id="interval-help" data-i18n="intervalHelp">Choose an interval from 15 to 86,400 seconds.</p></div><div class="number-field"><input id="check-interval" type="number" min="15" max="86400" step="1" inputmode="numeric" aria-describedby="interval-help" required><span data-i18n="seconds">seconds</span></div></div>
+                <div class="setting-row"><div class="setting-copy"><label for="notify-offline" class="setting-label" data-i18n="offlineNotification">Stream end notifications</label><p data-i18n="offlineHelp">Also notify when a stream ends.</p></div><input class="switch" id="notify-offline" type="checkbox" role="switch"></div>
               </fieldset>
-              <div class="setting-row"><div class="setting-copy"><span class="setting-label" id="test-label">데스크톱 알림 확인</span><p id="test-help">알림이 표시되는지 테스트합니다.</p></div><button class="button secondary small" id="test-notification" type="button" data-native aria-labelledby="test-label test-button-label" aria-describedby="test-help" disabled><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg><span id="test-button-label">테스트 알림</span></button></div>
+              <div class="setting-row"><div class="setting-copy"><span class="setting-label" id="test-label" data-i18n="testLabel">Check desktop notifications</span><p id="test-help" data-i18n="testHelp">Send a notification to check that it appears.</p></div><button class="button secondary small" id="test-notification" type="button" data-native aria-labelledby="test-label test-button-label" aria-describedby="test-help" disabled><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg><span id="test-button-label">Test notification</span></button></div>
             </div></section>
-            <section class="settings-section" aria-labelledby="api-heading"><h2 id="api-heading">CHZZK API <span class="optional-label">선택 사항</span></h2><div class="settings-card api-card"><p class="section-description">공식 API 인증 정보를 등록할 수 있습니다. 비워 두어도 방송 상태를 확인합니다.</p>
-              <fieldset class="native-fields api-fields" data-native-edit disabled><legend class="visually-hidden">CHZZK API 인증 정보</legend>
-                <div class="field"><label for="client-id">Client ID</label><input id="client-id" type="text" placeholder="Client ID 입력" autocomplete="off" spellcheck="false" maxlength="1024"></div>
-                <div class="field"><label for="client-secret">Client Secret <span class="credential-status" id="secret-status">저장 여부 확인 전</span></label><input id="client-secret" type="password" placeholder="새 Secret 입력" autocomplete="new-password" spellcheck="false" maxlength="4096" aria-describedby="secret-help"><p class="field-help" id="secret-help">비워 두면 기존 값을 유지합니다. 저장된 Secret은 표시하지 않습니다.</p></div>
-                <label class="checkbox-label" id="clear-secret-label"><input id="clear-client-secret" type="checkbox" disabled>저장된 Client Secret 삭제</label>
+            <section class="settings-section" aria-labelledby="api-heading"><h2 id="api-heading">CHZZK API <span class="optional-label" data-i18n="optional">Optional</span></h2><div class="settings-card api-card"><p class="section-description" data-i18n="apiDescription">You can register official API credentials. Streams are still checked without them.</p>
+              <fieldset class="native-fields api-fields" data-native-edit disabled><legend class="visually-hidden" data-i18n="apiCredentials">CHZZK API credentials</legend>
+                <div class="field"><label for="client-id">Client ID</label><input id="client-id" type="text" placeholder="Enter Client ID" data-i18n-placeholder="clientIdPlaceholder" autocomplete="off" spellcheck="false" maxlength="1024"></div>
+                <div class="field"><label for="client-secret">Client Secret <span class="credential-status" id="secret-status">Saved status not checked</span></label><input id="client-secret" type="password" placeholder="Enter a new Secret" autocomplete="new-password" spellcheck="false" maxlength="4096" aria-describedby="secret-help"><p class="field-help" id="secret-help" data-i18n="secretHelp">Leave blank to keep the current value. Saved Secrets are never displayed.</p></div>
+                <label class="checkbox-label" id="clear-secret-label" data-i18n-leading="clearSecret"><input id="clear-client-secret" type="checkbox" disabled>Delete saved Client Secret</label>
               </fieldset>
             </div></section>
             <div class="form-error" id="settings-error" role="alert" hidden></div>
-            <div class="settings-save"><p class="caption" id="settings-edit-status" role="status">앱 연결 후 설정을 변경할 수 있습니다.</p><div class="button-group"><button class="button secondary" id="reset-settings" type="button" disabled>되돌리기</button><button class="button primary" id="save-settings" type="submit" disabled>변경 사항 저장</button></div></div>
+            <div class="settings-save"><p class="caption" id="settings-edit-status" role="status">Connect to the app to change settings.</p><div class="button-group"><button class="button secondary" id="reset-settings" type="button" disabled data-i18n="reset">Revert</button><button class="button primary" id="save-settings" type="submit" disabled>Save changes</button></div></div>
           </form>
-          <section class="settings-section" aria-labelledby="startup-heading"><h2 id="startup-heading">앱 실행</h2><div class="settings-card"><div class="setting-row"><div class="setting-copy"><label for="auto-launch" class="setting-label">로그인할 때 자동 실행</label><p>데스크톱 로그인 시 Kucheat을 시작합니다.</p></div><input class="switch" id="auto-launch" type="checkbox" role="switch" data-native disabled></div><div class="form-error inset-error" id="auto-launch-error" role="alert" hidden></div><div class="setting-note"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg><p>GUI 또는 데몬이 실행 중일 때 모니터링합니다. 창을 닫으면 GUI가 종료됩니다.</p></div></div></section>
-          <section class="settings-section" aria-labelledby="appearance-heading"><h2 id="appearance-heading">화면</h2><div class="settings-card appearance-card"><fieldset class="theme-fieldset"><legend class="setting-label">앱 테마</legend><div class="theme-options">
-            <label class="theme-option"><input type="radio" name="theme" value="system" checked><span class="theme-preview preview-system" aria-hidden="true"><i></i><i></i><i></i></span><span>시스템 설정</span></label>
-            <label class="theme-option"><input type="radio" name="theme" value="light"><span class="theme-preview preview-light" aria-hidden="true"><i></i><i></i><i></i></span><span>라이트</span></label>
-            <label class="theme-option"><input type="radio" name="theme" value="dark"><span class="theme-preview preview-dark" aria-hidden="true"><i></i><i></i><i></i></span><span>다크</span></label>
-          </div></fieldset><p class="field-help" id="theme-help">테마는 이 기기에 저장되며 즉시 적용됩니다.</p></div></section>
+          <section class="settings-section" aria-labelledby="startup-heading"><h2 id="startup-heading" data-i18n="startupHeading">Startup</h2><div class="settings-card"><div class="setting-row"><div class="setting-copy"><label for="auto-launch" class="setting-label" data-i18n="autoLaunchLabel">Launch at login</label><p data-i18n="autoLaunchHelp">Start Kucheat when you sign in to your desktop.</p></div><input class="switch" id="auto-launch" type="checkbox" role="switch" data-native disabled></div><div class="form-error inset-error" id="auto-launch-error" role="alert" hidden></div><div class="setting-note"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg><p data-i18n="runningHelp">Monitoring runs while the GUI or daemon is running. Closing the window exits the GUI.</p></div></div></section>
+          <section class="settings-section" aria-labelledby="appearance-heading"><h2 id="appearance-heading" data-i18n="appearance">Appearance</h2><div class="settings-card appearance-card"><fieldset class="theme-fieldset"><legend class="setting-label" data-i18n="themeLabel">App theme</legend><div class="theme-options">
+            <label class="theme-option"><input type="radio" name="theme" value="system" checked><span class="theme-preview preview-system" aria-hidden="true"><i></i><i></i><i></i></span><span data-i18n="system">System</span></label>
+            <label class="theme-option"><input type="radio" name="theme" value="light"><span class="theme-preview preview-light" aria-hidden="true"><i></i><i></i><i></i></span><span data-i18n="light">Light</span></label>
+            <label class="theme-option"><input type="radio" name="theme" value="dark"><span class="theme-preview preview-dark" aria-hidden="true"><i></i><i></i><i></i></span><span data-i18n="dark">Dark</span></label>
+          </div></fieldset><p class="field-help" id="theme-help">Your theme is saved on this device and applied immediately.</p></div></section>
           <footer class="settings-footer"><span>Kucheat <span id="settings-version"></span></span><span id="session-type"></span></footer>
         </section>
       </div>
     </main>
   </div>
   <dialog id="add-dialog" aria-labelledby="add-dialog-title" aria-describedby="add-dialog-description">
-    <form id="add-form" novalidate autocomplete="off"><div class="dialog-header"><h2 id="add-dialog-title">채널 추가</h2><button class="icon-button" type="button" data-close-dialog="add-dialog" aria-label="채널 추가 닫기"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div><div class="dialog-body"><p id="add-dialog-description">방송 시작 알림을 받을 CHZZK 채널을 추가하세요.</p><div class="field"><label for="new-channel-id">채널 ID 또는 CHZZK 주소 <span class="required-text">필수</span></label><input id="new-channel-id" type="text" placeholder="https://chzzk.naver.com/…" required maxlength="512" spellcheck="false" aria-describedby="channel-id-help" autofocus><p id="channel-id-help" class="field-help">채널이나 라이브 주소 또는 32자리 채널 ID를 입력하세요.</p></div><div class="field"><label for="new-channel-name">표시 이름 <span class="optional-label">선택 사항</span></label><input id="new-channel-name" type="text" placeholder="비워 두면 채널 이름을 가져옵니다" maxlength="80"></div><div class="form-error" id="add-error" role="alert" hidden></div></div><div class="dialog-footer"><button class="button secondary" type="button" data-close-dialog="add-dialog">취소</button><button class="button primary" type="submit" id="confirm-add">추가</button></div></form>
+    <form id="add-form" novalidate autocomplete="off"><div class="dialog-header"><h2 id="add-dialog-title" data-i18n="addChannel">Add channel</h2><button class="icon-button" type="button" data-close-dialog="add-dialog" aria-label="Close add channel dialog" data-i18n-aria-label="closeAdd"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div><div class="dialog-body"><p id="add-dialog-description" data-i18n="addDescription">Add a CHZZK channel to receive notifications when it goes live.</p><div class="field"><label for="new-channel-id" data-i18n-leading="channelIdLabel">Channel ID or CHZZK URL <span class="required-text" data-i18n="required">Required</span></label><input id="new-channel-id" type="text" placeholder="https://chzzk.naver.com/…" required maxlength="512" spellcheck="false" aria-describedby="channel-id-help" autofocus><p id="channel-id-help" class="field-help" data-i18n="channelIdHelp">Enter a channel or live URL, or a 32-character channel ID.</p></div><div class="field"><label for="new-channel-name" data-i18n-leading="displayName">Display name <span class="optional-label" data-i18n="optional">Optional</span></label><input id="new-channel-name" type="text" placeholder="Leave blank to fetch the channel name" data-i18n-placeholder="namePlaceholder" maxlength="80"></div><div class="form-error" id="add-error" role="alert" hidden></div></div><div class="dialog-footer"><button class="button secondary" type="button" data-close-dialog="add-dialog" data-i18n="cancel">Cancel</button><button class="button primary" type="submit" id="confirm-add">Add</button></div></form>
   </dialog>
   <dialog id="delete-dialog" aria-labelledby="delete-dialog-title" aria-describedby="delete-description">
-    <form id="delete-form"><div class="dialog-header"><h2 id="delete-dialog-title">채널을 삭제할까요?</h2><button class="icon-button" type="button" data-close-dialog="delete-dialog" aria-label="채널 삭제 닫기"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div><div class="dialog-body"><p id="delete-description"><strong id="delete-channel-name"></strong> 채널을 목록에서 삭제하고 알림을 중단합니다.</p><p class="field-help">언제든 다시 추가할 수 있습니다.</p><div class="form-error" id="delete-error" role="alert" hidden></div></div><div class="dialog-footer"><button class="button secondary" type="button" data-close-dialog="delete-dialog" autofocus>취소</button><button class="button danger" type="submit" id="confirm-delete">채널 삭제</button></div></form>
+    <form id="delete-form"><div class="dialog-header"><h2 id="delete-dialog-title" data-i18n="deleteTitle">Delete this channel?</h2><button class="icon-button" type="button" data-close-dialog="delete-dialog" aria-label="Close delete channel dialog" data-i18n-aria-label="closeDelete"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div><div class="dialog-body"><p id="delete-description">Delete <strong id="delete-channel-name"></strong> from the list and stop its notifications.</p><p class="field-help" data-i18n="deleteHelp">You can add it again at any time.</p><div class="form-error" id="delete-error" role="alert" hidden></div></div><div class="dialog-footer"><button class="button secondary" type="button" data-close-dialog="delete-dialog" autofocus data-i18n="cancel">Cancel</button><button class="button danger" type="submit" id="confirm-delete">Delete channel</button></div></form>
   </dialog>
-  <div class="toast" id="toast" role="status" hidden><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span id="toast-message"></span><button class="icon-button" type="button" id="dismiss-toast" aria-label="알림 닫기"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
-  <section class="action-error-panel" id="action-error-panel" role="alert" hidden><div><strong id="action-error-title"></strong><p id="action-error-detail"></p></div><button class="icon-button" type="button" id="dismiss-action-error" aria-label="오류 메시지 닫기"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></section>
-  <noscript><div class="no-script">Kucheat을 사용하려면 JavaScript가 필요합니다.</div></noscript>
+  <div class="toast" id="toast" role="status" hidden><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span id="toast-message"></span><button class="icon-button" type="button" id="dismiss-toast" aria-label="Dismiss notification" data-i18n-aria-label="dismissToast"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
+  <section class="action-error-panel" id="action-error-panel" role="alert" hidden><div><strong id="action-error-title"></strong><p id="action-error-detail"></p></div><button class="icon-button" type="button" id="dismiss-action-error" aria-label="Dismiss error message" data-i18n-aria-label="dismissError"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></section>
+  <noscript><div class="no-script">JavaScript is required to use Kucheat.</div></noscript>
 </body>
 </html>

@@ -6,12 +6,14 @@ use crate::application::ApplicationServices;
 use crate::domain::channel::ChannelId;
 use crate::domain::state::AppState;
 use crate::infrastructure::dbus::{MonitorHost, MonitoringRuntime};
+use crate::infrastructure::localization::{NativeLocalizer, interpolate};
 use crate::presentation::tray::{StateSource, TrayApplication};
 
 pub struct CliApplication {
     services: ApplicationServices,
     monitoring: Arc<MonitoringRuntime>,
     tray: Arc<TrayApplication>,
+    localizer: Arc<NativeLocalizer>,
 }
 
 impl CliApplication {
@@ -19,15 +21,18 @@ impl CliApplication {
         services: ApplicationServices,
         monitoring: Arc<MonitoringRuntime>,
         tray: Arc<TrayApplication>,
+        localizer: Arc<NativeLocalizer>,
     ) -> Self {
         Self {
             services,
             monitoring,
             tray,
+            localizer,
         }
     }
 
     pub async fn run(&self, command: Commands) -> Result<()> {
+        let messages = self.localizer.catalog();
         match command {
             Commands::Gui => anyhow::bail!("GUI runs on the main thread"),
             Commands::Daemon => {
@@ -51,25 +56,46 @@ impl CliApplication {
                     .upsert(identifier.as_str(), name)
                     .await
                     .unwrap_or_else(|error| {
-                        eprintln!("❌ 유효하지 않은 채널 ID입니다: {}", identifier.as_str());
-                        eprintln!("   오류: {error}");
+                        eprintln!(
+                            "{}",
+                            interpolate(messages.cli_add_error, &[("id", identifier.as_str())])
+                        );
+                        eprintln!(
+                            "{}",
+                            interpolate(
+                                messages.cli_error_detail,
+                                &[("error", &format!("{error:#}"))]
+                            )
+                        );
                         std::process::exit(1);
                     });
-                println!("✅ 채널 추가: {} ({})", channel.name, channel.id);
+                println!(
+                    "{}",
+                    interpolate(
+                        messages.cli_added,
+                        &[("name", &channel.name), ("id", &channel.id)]
+                    )
+                );
             }
             Commands::Remove { channel_id } => {
                 if self.services.channels.remove(&channel_id)? {
-                    println!("🗑️  채널 제거: {channel_id}");
+                    println!(
+                        "{}",
+                        interpolate(messages.cli_removed, &[("id", &channel_id)])
+                    );
                 } else {
-                    println!("⚠️  해당 채널을 찾을 수 없습니다: {channel_id}");
+                    println!(
+                        "{}",
+                        interpolate(messages.cli_not_found, &[("id", &channel_id)])
+                    );
                 }
             }
             Commands::List => {
                 let channels = self.services.channels.list()?;
                 if channels.is_empty() {
-                    println!("등록된 채널이 없습니다.");
+                    println!("{}", messages.cli_empty);
                 } else {
-                    println!("모니터링 채널 목록:");
+                    println!("{}", messages.cli_list_heading);
                     for channel in channels {
                         println!("  • {} ({})", channel.name, channel.id);
                     }
@@ -78,21 +104,21 @@ impl CliApplication {
             Commands::Status => {
                 let channels = self.services.channels.status().await?;
                 if channels.is_empty() {
-                    println!("등록된 채널이 없습니다.");
+                    println!("{}", messages.cli_empty);
                 } else {
-                    println!("채널 상태:");
+                    println!("{}", messages.cli_status_heading);
                     for channel in channels {
                         let (icon, extra) = match channel.is_live {
                             Some(true) => (
-                                "🔴 LIVE",
+                                messages.status_live,
                                 channel
                                     .live_title
                                     .as_deref()
                                     .map(|title| format!(" 「{title}」"))
                                     .unwrap_or_default(),
                             ),
-                            Some(false) => ("⚫ Offline", String::new()),
-                            None => ("❓ Unknown", String::new()),
+                            Some(false) => (messages.status_offline, String::new()),
+                            None => (messages.status_unknown, String::new()),
                         };
                         println!("  {icon} {} ({}){extra}", channel.name, channel.id);
                     }
@@ -104,9 +130,9 @@ impl CliApplication {
                 println!(
                     "{}",
                     if enabled {
-                        "자동 실행이 활성화되었습니다."
+                        messages.autostart_enabled
                     } else {
-                        "자동 실행이 비활성화되었습니다."
+                        messages.autostart_disabled
                     }
                 );
             }

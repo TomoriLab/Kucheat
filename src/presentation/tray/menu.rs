@@ -1,6 +1,7 @@
 use crate::application::ports::BrowserLauncher;
 use crate::domain::config::ChannelConfig;
 use crate::domain::state::{AppState, ChannelState};
+use crate::infrastructure::localization::{NativeLocalizer, format_count, interpolate};
 use std::sync::{Arc, Mutex as StdMutex};
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,7 @@ fn chzzk_url(path: &str, channel_id: &str) -> String {
 pub(super) struct TrayMenu {
     data: Arc<StdMutex<TrayData>>,
     browser: Arc<dyn BrowserLauncher>,
+    localizer: Arc<NativeLocalizer>,
 }
 
 impl ksni::Tray for TrayMenu {
@@ -102,7 +104,7 @@ impl ksni::Tray for TrayMenu {
     }
 
     fn title(&self) -> String {
-        "Kucheat – CHZZK 알림".to_string()
+        self.localizer.catalog().tray_title.to_owned()
     }
 
     fn category(&self) -> ksni::Category {
@@ -123,6 +125,7 @@ impl ksni::Tray for TrayMenu {
 
     fn tool_tip(&self) -> ksni::ToolTip {
         let data = self.data.lock().unwrap();
+        let messages = self.localizer.catalog();
         let live_count = data
             .channels
             .iter()
@@ -130,9 +133,12 @@ impl ksni::Tray for TrayMenu {
             .count();
 
         let description = if live_count > 0 {
-            format!("{live_count}개 채널 라이브 중")
+            interpolate(
+                messages.tray_live_count,
+                &[("count", &live_count.to_string())],
+            )
         } else {
-            "라이브 없음".to_string()
+            messages.tray_no_live.to_owned()
         };
 
         ksni::ToolTip {
@@ -145,10 +151,11 @@ impl ksni::Tray for TrayMenu {
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         let data = self.data.lock().unwrap();
+        let messages = self.localizer.catalog();
         let mut items: Vec<ksni::MenuItem<Self>> = Vec::new();
 
         if data.channels.is_empty() {
-            items.push(label_item("채널 없음 (kucheat add <id>)".into()));
+            items.push(label_item(messages.tray_no_channels.into()));
         } else {
             let (live, offline): (Vec<_>, Vec<_>) = data
                 .channels
@@ -157,27 +164,33 @@ impl ksni::Tray for TrayMenu {
 
             // ── Live channels ──────────────────────────────────────
             if !live.is_empty() {
-                items.push(label_item(format!("━━ 라이브 ({}) ━━", live.len())));
+                items.push(label_item(interpolate(
+                    messages.tray_live_section,
+                    &[("count", &live.len().to_string())],
+                )));
 
                 for ch in &live {
                     let cs = data.state.channels.get(&ch.id);
-                    items.push(self.build_live_submenu(ch, cs));
+                    items.push(self.build_live_submenu(ch, cs, messages));
                 }
             }
 
             // ── Offline channels ───────────────────────────────────
             if !offline.is_empty() {
-                items.push(label_item(format!("━━ 오프라인 ({}) ━━", offline.len())));
+                items.push(label_item(interpolate(
+                    messages.tray_offline_section,
+                    &[("count", &offline.len().to_string())],
+                )));
 
                 for ch in &offline {
-                    items.push(self.build_offline_submenu(ch));
+                    items.push(self.build_offline_submenu(ch, messages));
                 }
             }
         }
 
         items.push(ksni::MenuItem::Separator);
         items.push(ksni::MenuItem::Standard(ksni::menu::StandardItem {
-            label: "종료".to_string(),
+            label: messages.quit.to_owned(),
             activate: Box::new(|_| std::process::exit(0)),
             ..Default::default()
         }));
@@ -192,13 +205,22 @@ impl ksni::Tray for TrayMenu {
 }
 
 impl TrayMenu {
-    pub(super) fn new(data: Arc<StdMutex<TrayData>>, browser: Arc<dyn BrowserLauncher>) -> Self {
-        Self { data, browser }
+    pub(super) fn new(
+        data: Arc<StdMutex<TrayData>>,
+        browser: Arc<dyn BrowserLauncher>,
+        localizer: Arc<NativeLocalizer>,
+    ) -> Self {
+        Self {
+            data,
+            browser,
+            localizer,
+        }
     }
     fn build_live_submenu(
         &self,
         ch: &ChannelConfig,
         cs: Option<&ChannelState>,
+        messages: &crate::infrastructure::localization::Catalog,
     ) -> ksni::MenuItem<Self> {
         let name = cs.map_or(&ch.name as &str, |s| &s.channel_name);
         let mut sub: Vec<ksni::MenuItem<Self>> = Vec::new();
@@ -207,17 +229,20 @@ impl TrayMenu {
             sub.push(label_item(format!("📺 {title}")));
         }
         if let Some(count) = cs.and_then(|s| s.viewer_count) {
-            sub.push(label_item(format!("👤 시청자 {count}명")));
+            sub.push(label_item(interpolate(
+                messages.notification_viewers,
+                &[("count", &format_count(count))],
+            )));
         }
 
         sub.push(ksni::MenuItem::Separator);
         sub.push(link_item(
-            "🔗 라이브 보기".into(),
+            messages.watch_live.into(),
             chzzk_url("live", &ch.id),
             Arc::clone(&self.browser),
         ));
         sub.push(link_item(
-            "🔗 채널 페이지 열기".into(),
+            messages.open_channel.into(),
             chzzk_url("", &ch.id),
             Arc::clone(&self.browser),
         ));
@@ -229,11 +254,15 @@ impl TrayMenu {
         })
     }
 
-    fn build_offline_submenu(&self, ch: &ChannelConfig) -> ksni::MenuItem<Self> {
+    fn build_offline_submenu(
+        &self,
+        ch: &ChannelConfig,
+        messages: &crate::infrastructure::localization::Catalog,
+    ) -> ksni::MenuItem<Self> {
         ksni::MenuItem::SubMenu(ksni::menu::SubMenu {
             label: format!("⚫ {}", ch.name),
             submenu: vec![link_item(
-                "🔗 채널 페이지 열기".into(),
+                messages.open_channel.into(),
                 chzzk_url("", &ch.id),
                 Arc::clone(&self.browser),
             )],

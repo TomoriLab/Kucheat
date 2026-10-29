@@ -1,3 +1,4 @@
+import type { LocalizedText } from "../../localization/localizer.ts";
 import type { ErrorTarget, Feedback, Scheduler } from "../../application/ports/presentation.ts";
 import { EventBindings } from "../dom/event-bindings.ts";
 import type { FeedbackView } from "../views/feedback-view.ts";
@@ -24,11 +25,13 @@ export class FeedbackController implements Feedback {
     this.#cancelToast = undefined;
   }
 
-  clearError(target: ErrorTarget): void { this.#view.clearError(target); }
-  displayError(target: ErrorTarget, context: string, error: unknown): void { this.#view.displayError(target, context, error); }
-  showActionError(context: string, error: unknown): void { this.#view.showActionError(context, error); }
+  render(): void { this.#view.render(); }
 
-  showToast(message: string): void {
+  clearError(target: ErrorTarget): void { this.#view.clearError(target); }
+  displayError(target: ErrorTarget, context: LocalizedText, error: unknown): void { this.#view.displayError(target, context, error); }
+  showActionError(context: LocalizedText, error: unknown): void { this.#view.showActionError(context, error); }
+
+  showToast(message: LocalizedText): void {
     this.#cancelToast?.();
     this.#view.showToast(message);
     this.#cancelToast = this.#scheduler.schedule(() => {

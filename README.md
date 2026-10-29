@@ -2,7 +2,7 @@
 
 CHZZK live stream notifications for Linux, with a Tauri desktop interface, a headless daemon, and an optional system tray.
 
-The Korean-language GUI follows [Microsoft Fluent 2](https://fluent2.microsoft.design/): neutral layered surfaces, blue accents, a system-font type ramp, keyboard navigation, and light, dark, and system themes. The TypeScript frontend is compiled and bundled locally without runtime frameworks or remotely hosted application assets. Streamer profile images load from NAVER's image CDN, with initials as a fallback.
+The interface supports Korean, English, Japanese, and Traditional Chinese (Taiwan) and follows [Microsoft Fluent 2](https://fluent2.microsoft.design/): neutral layered surfaces, blue accents, a system-font type ramp, keyboard navigation, and light, dark, and system themes. The TypeScript frontend is compiled and bundled locally without runtime frameworks or remotely hosted application assets. Streamer profile images load from NAVER's image CDN, with initials as a fallback.
 
 ## Prerequisites
 
@@ -78,13 +78,19 @@ kucheat gui
 
 - **Channels:** add a 32-character CHZZK channel ID or an HTTPS channel/live URL, optionally choose a display name, search and filter channels, open streams, and remove channels with confirmation.
 - **Live status:** show stream titles, categories, viewer counts, and check timestamps. Channels that have not been checked remain distinct from offline channels. Manual refresh requests a check from the active monitor.
-- **Settings:** configure the check interval, offline notifications, optional API credentials, login autostart, and appearance. Send a test desktop notification to verify notification delivery.
+- **Settings:** configure the check interval, offline notifications, optional API credentials, language, login autostart, and appearance. Send a test desktop notification to verify notification delivery.
 
 The GUI monitors channels while its window is open. Closing the window exits the GUI; it does not hide in a potentially unavailable tray. Enable login autostart or the systemd daemon for notifications after the GUI closes.
 
 The GUI and CLI share the same configuration and state. A session D-Bus name ensures only one process monitors channels and sends notifications. An open GUI follows an existing daemon and takes over if it stops. A daemon started while the GUI owns monitoring waits for ownership. Starting the GUI again activates the existing window instead of opening another instance.
 
 API secrets are write-only in the GUI. A blank secret field preserves the stored value; the explicit clear option removes it. Configuration and state files are replaced atomically with owner-only permissions. Credentials remain in the local TOML configuration, not an encrypted credential store.
+
+### Language
+
+Select **System**, **한국어**, **English**, **日本語**, or **繁體中文（台灣）** in Settings and save the form. Language changes apply without restarting the GUI, notification service, or tray. The same preference controls CLI output and application-authored help text. Date and viewer-count formatting follow the selected GUI locale. Channel names, stream titles, categories, and upstream OS/API/parser diagnostics retain their original text.
+
+The default is `system`. The GUI selects the first supported language from the browser's system preferences; the CLI and native adapters use the first non-empty value of `LC_ALL`, `LC_MESSAGES`, `LANGUAGE`, and `LANG`. Colon-separated language lists select the first supported language. Unsupported languages fall back to English. Chinese system variants use Traditional Chinese (Taiwan).
 
 ## Wayland
 
@@ -111,6 +117,7 @@ client_secret = ""
 # The accepted interval is 15 through 86400 seconds.
 check_interval_secs = 60
 notify_offline = false
+language = "system"
 
 [[channels]]
 id = "0123456789abcdef0123456789abcdef"
@@ -184,6 +191,7 @@ cargo clippy --locked --all-targets --all-features
 
 # Exercise D-Bus ownership and refresh IPC without affecting the desktop session.
 dbus-run-session -- cargo test --locked --all-features dbus_monitor_has_one_owner_and_accepts_refresh -- --ignored
+dbus-run-session -- cargo test --locked --all-features localized_notification_delivery -- --ignored
 
 # TypeScript type checking and frontend state/controller/transport tests.
 npm run check

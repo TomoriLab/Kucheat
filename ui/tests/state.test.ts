@@ -98,6 +98,7 @@ test("draft ownership prevents caller mutation and clearing a secret discards re
   assert.deepEqual(createSettingsPayload(draft.values).settings, {
     check_interval_secs: 60, notify_offline: true, client_id: "client-id",
     client_secret: null, clear_client_secret: true,
+    language: "system",
   });
   draft.update({ ...draft.values, clearClientSecret: false }, source);
   assert.equal(draft.dirty, false);

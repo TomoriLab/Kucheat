@@ -1,4 +1,5 @@
-import { channelState, formatTimestamp, formatViewerCount } from "../../domain/rules.ts";
+import { channelState } from "../../domain/rules.ts";
+import type { Localizer } from "../../localization/localizer.ts";
 import type { Channel } from "../../domain/types.ts";
 import { createAction, createElement, setText } from "../dom/elements.ts";
 import { ChannelAvatarView } from "./channel-avatar-view.ts";
@@ -15,8 +16,11 @@ export class ChannelRowView {
   readonly #watch: HTMLButtonElement;
   readonly #open: HTMLButtonElement;
   readonly #remove: HTMLButtonElement;
+  readonly #localizer: Localizer;
+  readonly #watchLabel: HTMLSpanElement;
 
-  constructor(document: Document, identifier: string) {
+  constructor(document: Document, identifier: string, localizer: Localizer) {
+    this.#localizer = localizer;
     this.row = createElement(document, "article", "channel-card");
     this.row.setAttribute("role", "listitem");
     this.row.dataset.channelId = identifier;
@@ -34,10 +38,11 @@ export class ChannelRowView {
     metadata.append(this.#category, this.#viewers, this.#checked);
     content.append(nameRow, this.#title, metadata);
     const actions = createElement(document, "div", "channel-actions");
-    this.#watch = createAction(document, "button small watch-button", "play", "라이브 보기");
-    this.#watch.append(createElement(document, "span", "", "라이브 보기"));
-    this.#open = createAction(document, "icon-button", "open", "채널 페이지 열기");
-    this.#remove = createAction(document, "icon-button delete-channel", "delete", "채널 삭제");
+    this.#watch = createAction(document, "button small watch-button", "play", localizer.t("watchLive"));
+    this.#watchLabel = createElement(document, "span", "", localizer.t("watchLive"));
+    this.#watch.append(this.#watchLabel);
+    this.#open = createAction(document, "icon-button", "open", localizer.t("openChannel"));
+    this.#remove = createAction(document, "icon-button delete-channel", "delete", localizer.t("deleteChannel"));
     this.#watch.dataset.channelAction = "watch";
     this.#open.dataset.channelAction = "open";
     this.#remove.dataset.channelAction = "delete";
@@ -46,26 +51,28 @@ export class ChannelRowView {
   }
 
   render(channel: Channel, blocked: boolean): void {
+    const localizer = this.#localizer;
     const status = channelState(channel);
     const displayName = channel.name || channel.id;
     this.row.dataset.state = status;
     this.#avatar.render(channel);
     setText(this.#name, displayName);
-    setText(this.#badge, { live: "라이브", offline: "오프라인", unknown: "확인 전" }[status]);
-    setText(this.#title, status === "live" ? channel.live_title || "방송 제목 미제공"
-      : status === "offline" ? "지금은 방송 중이 아닙니다." : "아직 방송 상태를 확인하지 않았습니다.");
-    setText(this.#category, channel.category || "카테고리 미제공");
+    setText(this.#badge, localizer.t(status));
+    setText(this.#title, status === "live" ? channel.live_title || localizer.t("noStreamTitle")
+      : localizer.t(status === "offline" ? "channelOffline" : "channelUnchecked"));
+    setText(this.#category, channel.category || localizer.t("noCategory"));
     this.#category.hidden = status !== "live";
-    setText(this.#viewers, formatViewerCount(channel.viewer_count));
+    setText(this.#viewers, localizer.viewers(channel.viewer_count));
     this.#viewers.hidden = status !== "live";
-    setText(this.#checked, channel.last_checked ? `최근 확인 ${formatTimestamp(channel.last_checked)}` : "아직 확인하지 않음");
+    setText(this.#checked, channel.last_checked ? localizer.t("lastChecked", { time: localizer.timestamp(channel.last_checked) }) : localizer.t("neverChecked"));
     this.#checked.title = channel.last_checked || "";
     this.#watch.hidden = status !== "live";
-    const actions: [HTMLButtonElement, string][] = [
-      [this.#watch, "라이브 보기"], [this.#open, "채널 페이지 열기"], [this.#remove, "채널 삭제"],
+    setText(this.#watchLabel, localizer.t("watchLive"));
+    const actions: [HTMLButtonElement, "watchChannelLabel" | "openChannelLabel" | "deleteChannelLabel"][] = [
+      [this.#watch, "watchChannelLabel"], [this.#open, "openChannelLabel"], [this.#remove, "deleteChannelLabel"],
     ];
     for (const [button, action] of actions) {
-      const label = `${displayName} · ${action}`;
+      const label = localizer.t(action, { name: displayName });
       button.setAttribute("aria-label", label);
       button.title = label;
     }

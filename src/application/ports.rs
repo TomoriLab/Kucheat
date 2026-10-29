@@ -13,6 +13,8 @@ pub type ConfigurationMutation<'a> = dyn FnMut(&mut Config) -> Result<()> + 'a;
 
 pub trait ConfigurationRepository: Send + Sync {
     fn load(&self) -> Result<Config>;
+    /// Existing settings can be inspected without creating a default configuration.
+    fn load_existing(&self) -> Result<Option<Config>>;
     /// Implementations apply a mutation exactly once against the latest configuration atomically.
     fn update(&self, mutation: &mut ConfigurationMutation<'_>) -> Result<()>;
 }

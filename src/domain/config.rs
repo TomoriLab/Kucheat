@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use super::localization::LanguagePreference;
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Config {
     pub api: ApiConfig,
@@ -27,6 +29,8 @@ pub struct Settings {
     /// Whether to send notification when a stream goes offline
     #[serde(default)]
     pub notify_offline: bool,
+    #[serde(default)]
+    pub language: LanguagePreference,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -59,6 +63,7 @@ impl Default for Config {
             settings: Settings {
                 check_interval_secs: 60,
                 notify_offline: false,
+                language: LanguagePreference::System,
             },
             channels: Vec::new(),
         }
@@ -106,7 +111,8 @@ mod tests {
             assert!(
                 Settings {
                     check_interval_secs: interval,
-                    notify_offline: false
+                    notify_offline: false,
+                    language: LanguagePreference::System,
                 }
                 .validate()
                 .is_ok()
@@ -116,7 +122,8 @@ mod tests {
             assert!(
                 Settings {
                     check_interval_secs: interval,
-                    notify_offline: false
+                    notify_offline: false,
+                    language: LanguagePreference::System,
                 }
                 .validate()
                 .is_err()

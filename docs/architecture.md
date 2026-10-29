@@ -83,6 +83,7 @@ scripts/
 | Desktop and CHZZK adapters | Implement the injected browser, notification, autostart, and channel gateway ports without placing platform details in services. |
 | `GuiApplication`, `DesktopInstance` | Run Tauri on the main thread, delegate commands to application services, and activate the existing GUI instance through D-Bus. |
 | `CliApplication`, `TrayApplication` | Format CLI results and orchestrate daemon/tray lifetimes. The tray observes watch snapshots or persisted state without owning channel checks. |
+| `LanguagePreference`, `NativeLocalizer` | Keep stable language tags in configuration, resolve system defaults without creating files, and supply complete native catalogs to CLI, notification, and tray adapters. Existing language settings are re-read for each native action. |
 
 `ConfigurationRepository::update` is an atomic mutation contract, not an unrestricted overwrite operation. Implementations must apply the supplied mutation exactly once against the latest configuration. A failed mutation must not commit a partial change. This preserves concurrent CLI/GUI edits during network requests.
 
@@ -110,6 +111,16 @@ The Tauri command names and payload casing, TOML configuration schema, CLI subco
 Channel state and dashboard snapshots include a nullable `channel_image_url`. Older state files without this field remain readable and receive profile URLs during the next successful monitoring check. Profiles use the existing channel-info response without additional API requests. `ChannelAvatarView` loads only HTTPS NAVER CDN images allowed by the native CSP and retains initials when an image is missing or fails to load.
 
 Frontend source, tooling, and frontend tests remain strict TypeScript. Generated JavaScript belongs under `target/frontend/` or `target/tools/`, not in source directories. Cargo embeds compiled frontend assets only when the `gui` feature is enabled.
+
+## Localization
+
+The shared `settings.language` preference accepts `system`, `ko`, `en`, `ja`, and `zh-TW`. A missing field in an older TOML file defaults to `system`; an omitted or null field in an older settings command preserves the saved preference. Unknown explicit values are rejected before persistence. `ConfigurationRepository::load_existing` permits startup language selection and CLI help without writing a default configuration or acquiring a write lock.
+
+Native language models live in `src/domain/localization.rs`, while catalogs and the injected `NativeLocalizer` live under `src/infrastructure/localization/`. Catalog fields are checked at compile time and interpolation variables are checked in tests. Streamer-provided values are inserted without recursively interpreting their braces as placeholders. Notification and tray viewer counts use comma-separated three-digit grouping, shared by all supported locales.
+
+The frontend owns its injected localization object and complete language catalogs. Views and controllers request translated messages instead of embedding user-facing prose; HTML language, document titles, accessible attributes, and date/number formatting follow the selected locale. Application state and settings drafts remain independent of translated presentation. Language is persisted only through the native settings contract, not localStorage. OS/API/parser diagnostics and streamer content remain untranslated.
+
+Native tests cover language serialization, legacy settings, catalog completeness, placeholder parity, CLI help/output, and actual notification messages over an isolated D-Bus. The Wayland smoke suite exercises all four GUI languages, settings persistence, localized validation, and matching CLI output.
 
 ## Adding or changing behavior
 

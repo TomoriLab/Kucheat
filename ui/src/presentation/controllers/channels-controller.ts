@@ -1,3 +1,4 @@
+import type { Localizer } from "../../localization/localizer.ts";
 import type { ApplicationActions } from "../../application/application-controller.ts";
 import type { DesktopClient } from "../../application/ports/desktop-client.ts";
 import type { Feedback, ScreenController } from "../../application/ports/presentation.ts";
@@ -17,11 +18,14 @@ export class ChannelsController implements ScreenController {
   readonly #application: ApplicationActions;
   readonly #feedback: Feedback;
   readonly #events = new EventBindings();
+  readonly #localizer: Localizer;
 
   constructor(
     view: ChannelsView, dialogs: ChannelDialogsView, library: ChannelLibrary,
     state: DashboardState, client: DesktopClient, application: ApplicationActions, feedback: Feedback,
+    localizer: Localizer,
   ) {
+    this.#localizer = localizer;
     this.#view = view;
     this.#dialogs = dialogs;
     this.#library = library;
@@ -58,7 +62,7 @@ export class ChannelsController implements ScreenController {
     this.#events.listen(controls.add, "click", () => this.openAdd(controls.add));
     this.#events.listen(controls.refresh, "click", () => {
       void this.#application.run("refresh", () => this.#client.refreshChannels(), {
-        context: "방송 상태 확인을 요청하지 못했습니다", success: "방송 상태 확인을 요청했습니다.",
+        context: this.#localizer.message("refreshFailure"), success: this.#localizer.message("refreshSuccess"),
       });
     });
     this.#events.listen(controls.list, "click", (event) => this.handleRowAction(event));
@@ -114,7 +118,7 @@ export class ChannelsController implements ScreenController {
     } else {
       const live = button.dataset.channelAction === "watch";
       void this.#application.run("open", () => this.#client.openChannel(identifier, live), {
-        context: live ? "라이브를 열지 못했습니다" : "채널 페이지를 열지 못했습니다",
+        context: this.#localizer.message(live ? "liveOpenFailure" : "channelOpenFailure"),
       });
     }
   }
@@ -126,12 +130,12 @@ export class ChannelsController implements ScreenController {
     try {
       createChannelPayload(identifier.value, name.value, channels);
     } catch (error) {
-      this.#feedback.displayError("add-error", "채널 정보를 확인해 주세요.", error);
+      this.#feedback.displayError("add-error", this.#localizer.message("channelValidation"), error);
       this.#dialogs.markInvalid();
       return;
     }
     await this.#application.run("add", () => this.#client.addChannel(identifier.value, name.value, channels), {
-      dashboard: true, context: "채널을 추가하지 못했습니다", errorTarget: "add-error", success: "채널을 추가했습니다.",
+      dashboard: true, context: this.#localizer.message("addFailure"), errorTarget: "add-error", success: this.#localizer.message("addSuccess"),
       onSuccess: () => this.#dialogs.close("add-dialog"),
     });
   }
@@ -140,7 +144,7 @@ export class ChannelsController implements ScreenController {
     const channel = this.#library.deletion;
     if (!channel) return;
     const success = await this.#application.run("delete", () => this.#client.removeChannel(channel.id), {
-      dashboard: true, context: "채널을 삭제하지 못했습니다", errorTarget: "delete-error", success: "채널을 삭제했습니다.",
+      dashboard: true, context: this.#localizer.message("deleteFailure"), errorTarget: "delete-error", success: this.#localizer.message("deleteSuccess"),
       onSuccess: () => this.#dialogs.close("delete-dialog"),
     });
     if (success) this.#dialogs.focusAdd();

@@ -1,3 +1,4 @@
+import type { Localizer } from "../../localization/localizer.ts";
 import { channelCounts } from "../../domain/rules.ts";
 import type { ChannelFilter, Dashboard } from "../../domain/types.ts";
 import type { ChannelLibrary } from "../../application/state/channel-library.ts";
@@ -18,8 +19,10 @@ export class ChannelsView {
   readonly #navigationCount;
   readonly #counts;
   readonly #rows = new Map<string, ChannelRowView>();
+  readonly #localizer: Localizer;
 
-  constructor(document: Document) {
+  constructor(document: Document, localizer: Localizer) {
+    this.#localizer = localizer;
     this.#document = document;
     this.controls = {
       list: element(document, "channel-list", "div"),
@@ -56,11 +59,12 @@ export class ChannelsView {
   }
 
   render(dashboard: Dashboard | null, library: ChannelLibrary, available: boolean, loading: boolean, blocked: boolean): void {
+    const localizer = this.#localizer;
     const { list } = this.controls;
     const channels = dashboard?.channels || [];
     const counts = channelCounts(channels);
-    for (const filter of ["all", "live", "offline"] as const) setText(this.#counts[filter], counts[filter]);
-    setText(this.#navigationCount, dashboard ? counts.all : "—");
+    for (const filter of ["all", "live", "offline"] as const) setText(this.#counts[filter], localizer.number(counts[filter]));
+    setText(this.#navigationCount, dashboard ? localizer.number(counts.all) : "—");
     this.controls.clearSearch.hidden = !library.query;
     this.#empty.panel.hidden = true;
     this.#footnote.hidden = true;
@@ -71,12 +75,12 @@ export class ChannelsView {
         return;
       }
       list.replaceChildren();
-      if (!available) this.showEmpty("채널을 불러올 수 없습니다", "데스크톱 앱에 연결하면 등록한 채널이 여기에 표시됩니다.", blocked);
-      else this.showEmpty("연결을 확인해 주세요", "채널 정보를 가져오지 못했습니다. 다시 연결하거나 잠시 기다려 주세요.", false, { label: "다시 연결", type: "retry" });
+      if (!available) this.showEmpty(localizer.t("noChannelsConnection"), localizer.t("noChannelsDesktop"), blocked);
+      else this.showEmpty(localizer.t("checkConnectionTitle"), localizer.t("channelLoadFailure"), false, { label: localizer.t("retry"), type: "retry" });
       return;
     }
     for (const loading of list.querySelectorAll(".loading-card")) loading.remove();
-    const filtered = library.visible(channels);
+    const filtered = library.visible(channels, localizer.locale);
     const visibleIdentifiers = new Set(filtered.map((channel) => channel.id));
     const activeElement = this.#document.activeElement;
     for (const [identifier, view] of this.#rows) {
@@ -86,7 +90,7 @@ export class ChannelsView {
     filtered.forEach((channel, index) => {
       let view = this.#rows.get(channel.id);
       if (!view) {
-        view = new ChannelRowView(this.#document, channel.id);
+        view = new ChannelRowView(this.#document, channel.id, localizer);
         this.#rows.set(channel.id, view);
       }
       view.render(channel, blocked);
@@ -101,19 +105,18 @@ export class ChannelsView {
       }
     }
     if (!channels.length) {
-      this.showEmpty("첫 채널을 추가해 보세요", "방송이 시작되면 데스크톱 알림으로 알려드립니다.", blocked, { label: "채널 추가", type: "add" });
+      this.showEmpty(localizer.t("firstChannel"), localizer.t("firstChannelHelp"), blocked, { label: localizer.t("addChannel"), type: "add" });
     } else if (!filtered.length) {
-      const description = library.query ? "다른 검색어를 입력하거나 필터를 초기화해 보세요."
-        : library.filter === "live" ? "방송이 시작되면 여기에 표시됩니다." : "확인 전인 채널은 전체 목록에서 볼 수 있습니다.";
-      this.showEmpty(library.query ? "검색 결과가 없습니다" : library.filter === "live" ? "방송 중인 채널이 없습니다" : "오프라인 채널이 없습니다", description, blocked, { label: "전체 채널 보기", type: "clear" });
+      const description = localizer.t(library.query ? "searchHelp" : library.filter === "live" ? "noLiveHelp" : "noOfflineHelp");
+      this.showEmpty(localizer.t(library.query ? "noSearchResults" : library.filter === "live" ? "noLiveChannels" : "noOfflineChannels"), description, blocked, { label: localizer.t("showAll"), type: "clear" });
     }
     this.#footnote.hidden = !filtered.length;
-    setText(this.#announcement, `${filtered.length}개 채널 표시`);
+    setText(this.#announcement, localizer.t("channelAnnouncement", { count: localizer.number(filtered.length) }));
   }
 
   renderControls(blocked: boolean, operation: string | null, checking: boolean): void {
     this.controls.refresh.disabled = blocked || checking;
-    setText(this.controls.refreshLabel, operation === "refresh" ? "요청 중…" : checking ? "확인 중…" : "지금 확인");
+    setText(this.controls.refreshLabel, this.#localizer.t(operation === "refresh" ? "requestPending" : checking ? "checking" : "checkNow"));
     for (const view of this.#rows.values()) view.setBlocked(blocked);
   }
 

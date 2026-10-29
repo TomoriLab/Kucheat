@@ -13,6 +13,7 @@ fn input(secret: Option<&str>, clear: bool) -> SettingsInput {
         client_id: " client ".to_owned(),
         client_secret: secret.map(str::to_owned),
         clear_client_secret: clear,
+        language: None,
     }
 }
 
@@ -90,4 +91,67 @@ async fn desktop_actions_use_the_injected_ports() {
         application.events.snapshot(),
         [PortEvent::TestNotification, PortEvent::MonitorRefresh]
     );
+}
+
+#[tokio::test]
+async fn language_updates_preserve_credentials_and_legacy_requests_preserve_the_saved_language() {
+    use kucheat::domain::localization::{LanguagePreference, Locale};
+    use kucheat::infrastructure::localization::NativeLocalizer;
+
+    let mut config = Config::default();
+    config.add_channel(CHANNEL, "Original name");
+    config.api.client_secret = "Existing secret".to_owned();
+    config.settings.language = LanguagePreference::Japanese;
+    let application = TestApplication::new(config);
+    let localizer = NativeLocalizer::new(application.configuration.clone(), Locale::English);
+    application
+        .settings()
+        .update(input(None, false))
+        .await
+        .unwrap();
+    assert_eq!(localizer.locale(), Locale::Japanese);
+    for (language, expected) in [
+        (LanguagePreference::Korean, Locale::Korean),
+        (LanguagePreference::English, Locale::English),
+        (LanguagePreference::Japanese, Locale::Japanese),
+        (
+            LanguagePreference::TraditionalChinese,
+            Locale::TraditionalChinese,
+        ),
+        (LanguagePreference::System, Locale::English),
+    ] {
+        let mut settings = input(None, false);
+        settings.language = Some(language);
+        application.settings().update(settings).await.unwrap();
+        let saved = application.configuration.load().unwrap();
+        assert_eq!(saved.settings.language, language);
+        assert_eq!(saved.api.client_secret, "Existing secret");
+        assert_eq!(saved.channels[0].name, "Original name");
+        assert_eq!(localizer.locale(), expected);
+    }
+}
+
+#[test]
+fn legacy_configuration_defaults_to_system_and_unsupported_languages_are_rejected() {
+    use kucheat::domain::localization::LanguagePreference;
+
+    let legacy = toml::to_string(&Config::default())
+        .unwrap()
+        .replace("language = \"system\"\n", "");
+    assert_eq!(
+        toml::from_str::<Config>(&legacy).unwrap().settings.language,
+        LanguagePreference::System
+    );
+    let legacy_request = serde_json::json!({
+        "check_interval_secs": 60, "notify_offline": false, "client_id": "", "client_secret": null
+    });
+    assert!(
+        serde_json::from_value::<SettingsInput>(legacy_request.clone())
+            .unwrap()
+            .language
+            .is_none()
+    );
+    let mut invalid = legacy_request;
+    invalid["language"] = serde_json::json!("zh-CN");
+    assert!(serde_json::from_value::<SettingsInput>(invalid).is_err());
 }

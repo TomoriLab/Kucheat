@@ -2,7 +2,7 @@ export function element<Tag extends keyof HTMLElementTagNameMap>(
   document: Document, identifier: string, tag: Tag,
 ): HTMLElementTagNameMap[Tag] {
   const node = document.getElementById(identifier);
-  if (!node || node.localName !== tag) throw new Error(`필수 화면 요소를 찾을 수 없습니다: ${identifier}`);
+  if (!node || node.localName !== tag) throw new Error(`Required interface element not found: ${identifier}`);
   return node as HTMLElementTagNameMap[Tag];
 }
 

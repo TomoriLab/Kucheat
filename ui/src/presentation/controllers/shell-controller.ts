@@ -41,6 +41,7 @@ export class ShellController implements ScreenController {
     this.#events.listen<StorageEvent>(this.#window, "storage", (event) => {
       if (event.key === "kucheat.theme" || event.key === null) this.#view.applyTheme(normalizeTheme(event.newValue));
     });
+    this.#events.listen(this.#window, "languagechange", () => this.#application.relocalize());
     this.#view.applyTheme(normalizeTheme(this.#view.initialTheme));
   }
 

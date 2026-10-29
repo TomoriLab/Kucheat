@@ -50,6 +50,8 @@ def main():
         "XDG_DATA_HOME": str(root / "data"),
         "GDK_BACKEND": "wayland",
         "WAYLAND_DEBUG": "1",
+        "LC_ALL": "ko_KR.UTF-8",
+        "LANGUAGE": "ko",
         "RUST_LOG": "kucheat=debug",
     })
     (root / "home").mkdir(exist_ok=True)
@@ -195,6 +197,60 @@ def main():
         assert invoke("get_dashboard")["channels"] == []
         click('[data-close-dialog="add-dialog"]')
         print("PASS: Native UI settings, unsaved edits, themes, and channel dialog validation")
+
+        click('[data-page="settings"]')
+        for language, settings_heading, channels_heading, validation, empty_cli in [
+            ("en", "Settings", "Channels", "32-character channel ID", "No channels registered."),
+            ("ja", "設定", "チャンネル", "32桁のチャンネルID", "登録されているチャンネルはありません。"),
+            ("zh-TW", "設定", "頻道", "32 碼的頻道 ID", "尚未新增任何頻道。"),
+            ("ko", "설정", "채널", "32자리 채널 ID", "등록된 채널이 없습니다."),
+        ]:
+            wait_for("return !document.querySelector('#language').disabled")
+            if language == "en":
+                execute("const input = document.querySelector('#check-interval'); input.value = '180'; input.dispatchEvent(new Event('input', { bubbles: true }));")
+            execute("const select = document.querySelector('#language'); select.value = arguments[0]; select.dispatchEvent(new Event('change', { bubbles: true }));", language)
+            if language == "en":
+                time.sleep(3.3)
+                assert execute("return document.querySelector('#check-interval').value") == "180"
+                assert execute("return document.querySelector('#language').value") == language
+            click("#save-settings")
+            wait_for("return document.documentElement.lang === arguments[0] && document.querySelector('#save-settings').disabled", language)
+            assert execute("return document.querySelector('#settings-heading').textContent") == settings_heading
+            assert execute("return document.title") == f"{settings_heading} · Kucheat"
+            assert invoke("get_dashboard")["settings"]["language"] == language
+            persisted = tomllib.loads(config_path.read_text())
+            assert persisted["settings"]["language"] == language
+            assert persisted["settings"]["check_interval_secs"] == 180
+            listed = subprocess.run([str(arguments.application.resolve()), "list"], env=environment, capture_output=True, text=True, timeout=10)
+            assert listed.returncode == 0, listed.stderr
+            assert empty_cli in listed.stdout
+            assert execute("return document.documentElement.scrollWidth <= innerWidth")
+            execute("window.scrollTo(0, 0);")
+            image = request("GET", f"/session/{session}/screenshot")
+            (root / f"language-{language}.png").write_bytes(base64.b64decode(image))
+            click('[data-page="channels"]')
+            assert execute("return document.querySelector('#channels-heading').textContent") == channels_heading
+            click("#add-channel")
+            execute("document.querySelector('#new-channel-id').value = 'invalid';")
+            click("#confirm-add")
+            wait_for("return !document.querySelector('#add-error').hidden")
+            assert validation in execute("return document.querySelector('#add-error').textContent")
+            click('[data-close-dialog="add-dialog"]')
+            click('[data-page="settings"]')
+        execute("const select = document.querySelector('#language'); select.value = 'ja'; select.dispatchEvent(new Event('change', { bubbles: true }));")
+        click("#reset-settings")
+        assert execute("return document.querySelector('#language').value") == "ko"
+        assert execute("return document.documentElement.lang") == "ko"
+        invalid_language = {**settings, "language": "zh-CN"}
+        previous_config = config_path.read_bytes()
+        invoke("save_settings", {"settings": invalid_language}, success=False)
+        assert config_path.read_bytes() == previous_config
+        execute("const select = document.querySelector('#language'); select.value = 'system'; select.dispatchEvent(new Event('change', { bubbles: true })); const input = document.querySelector('#check-interval'); input.value = '60'; input.dispatchEvent(new Event('input', { bubbles: true }));")
+        click("#save-settings")
+        wait_for("return document.querySelector('#save-settings').disabled && document.documentElement.lang === 'ko'")
+        assert invoke("get_dashboard")["settings"]["language"] == "system"
+        click('[data-page="channels"]')
+        print("PASS: Four GUI languages, localized validation, draft/reset preservation, and shared CLI preference")
 
         if arguments.profile_channel_id:
             identifier = arguments.profile_channel_id

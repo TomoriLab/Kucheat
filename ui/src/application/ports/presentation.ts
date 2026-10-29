@@ -1,3 +1,5 @@
+import type { LocalizedText } from "../../localization/localizer.ts";
+
 export type ErrorTarget = "add-error" | "delete-error" | "settings-error";
 
 export interface ScreenController {
@@ -16,10 +18,11 @@ export interface ApplicationView {
 export interface Feedback {
   start(): void;
   dispose(): void;
+  render?(): void;
   clearError(target: ErrorTarget): void;
-  displayError(target: ErrorTarget, context: string, error: unknown): void;
-  showActionError(context: string, error: unknown): void;
-  showToast(message: string): void;
+  displayError(target: ErrorTarget, context: LocalizedText, error: unknown): void;
+  showActionError(context: LocalizedText, error: unknown): void;
+  showToast(message: LocalizedText): void;
 }
 
 export interface Scheduler {

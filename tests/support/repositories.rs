@@ -35,6 +35,10 @@ impl ConfigurationRepository for MemoryConfiguration {
         Ok(self.value.lock().unwrap().clone())
     }
 
+    fn load_existing(&self) -> Result<Option<Config>> {
+        self.load().map(Some)
+    }
+
     fn update(&self, mutation: &mut ConfigurationMutation<'_>) -> Result<()> {
         let mut current = self.value.lock().unwrap();
         if let Some(concurrent) = self.concurrent_update.lock().unwrap().take() {
